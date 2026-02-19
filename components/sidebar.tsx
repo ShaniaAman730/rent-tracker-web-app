@@ -13,7 +13,7 @@ import {
   Calculator,
   FileText,
   LogOut,
-  ChevronDown,
+  UserCog,
 } from 'lucide-react'
 import { User } from '@supabase/supabase-js'
 
@@ -41,6 +41,7 @@ export function Sidebar({ user }: SidebarProps) {
     { label: 'Properties', icon: Building2, path: '/dashboard/properties' },
     { label: 'Tenants', icon: Users, path: '/dashboard/tenants' },
     { label: 'Contracts', icon: FileText, path: '/dashboard/contract-monitoring' },
+    { label: 'Account', icon: UserCog, path: '/dashboard/account' },
   ]
 
   return (

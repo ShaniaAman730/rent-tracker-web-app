@@ -1,12 +1,33 @@
-import { Document, Packer, Paragraph, Table, TableCell, TableRow, WidthType, AlignmentType, BorderStyle, VerticalAlign, TextRun } from 'docx'
+import {
+  AlignmentType,
+  Document,
+  Packer,
+  Paragraph,
+  Table,
+  TableCell,
+  TableRow,
+  TextRun,
+  VerticalAlign,
+  WidthType,
+} from 'docx'
 import { BillingDataForExport } from '@/lib/billing-helpers'
 
-export async function generateBillingDocument(billingData: BillingDataForExport): Promise<Buffer> {
-  // Create table 1 - Consumption breakdown
-  const table1 = new Table({
+function createCell(text: string, bold = false): TableCell {
+  return new TableCell({
+    children: [
+      new Paragraph({
+        children: [new TextRun({ text, bold })],
+      }),
+    ],
+    margins: { top: 80, bottom: 80, left: 80, right: 80 },
+    verticalAlign: VerticalAlign.CENTER,
+  })
+}
+
+function buildConsumptionTable(billingData: BillingDataForExport) {
+  return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
-      // Header row
       new TableRow({
         children: [
           createCell('Location', true),
@@ -16,27 +37,24 @@ export async function generateBillingDocument(billingData: BillingDataForExport)
           createCell('Percentage', true),
         ],
       }),
-      // First floor
       new TableRow({
         children: [
           createCell('First Floor'),
           createCell(billingData.currentFirstFloor.toFixed(2)),
           createCell(billingData.previousFirstFloor.toFixed(2)),
           createCell(billingData.firstFloorUsage.toFixed(2)),
-          createCell(billingData.firstFloorPercentage.toFixed(2) + '%'),
+          createCell(`${billingData.firstFloorPercentage.toFixed(2)}%`),
         ],
       }),
-      // Second floor
       new TableRow({
         children: [
           createCell('Second Floor'),
           createCell(billingData.currentSecondFloor.toFixed(2)),
           createCell(billingData.previousSecondFloor.toFixed(2)),
           createCell(billingData.secondFloorUsage.toFixed(2)),
-          createCell(billingData.secondFloorPercentage.toFixed(2) + '%'),
+          createCell(`${billingData.secondFloorPercentage.toFixed(2)}%`),
         ],
       }),
-      // Total row
       new TableRow({
         children: [
           createCell('TOTAL', true),
@@ -48,12 +66,13 @@ export async function generateBillingDocument(billingData: BillingDataForExport)
       }),
     ],
   })
+}
 
-  // Create table 2 - Amount breakdown
-  const table2 = new Table({
+function buildAmountTable(billingData: BillingDataForExport) {
+  const total = billingData.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })
+  return new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
-      // Header row
       new TableRow({
         children: [
           createCell('Location', true),
@@ -62,143 +81,100 @@ export async function generateBillingDocument(billingData: BillingDataForExport)
           createCell('Amount per Location', true),
         ],
       }),
-      // First floor
       new TableRow({
         children: [
           createCell('First Floor'),
-          createCell('₱' + billingData.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })),
-          createCell(billingData.firstFloorPercentage.toFixed(2) + '%'),
-          createCell('₱' + billingData.firstFloorAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })),
+          createCell(`PHP ${total}`),
+          createCell(`${billingData.firstFloorPercentage.toFixed(2)}%`),
+          createCell(
+            `PHP ${billingData.firstFloorAmount.toLocaleString(undefined, {
+              maximumFractionDigits: 2,
+            })}`
+          ),
         ],
       }),
-      // Second floor
       new TableRow({
         children: [
           createCell('Second Floor'),
-          createCell('₱' + billingData.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })),
-          createCell(billingData.secondFloorPercentage.toFixed(2) + '%'),
-          createCell('₱' + billingData.secondFloorAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })),
+          createCell(`PHP ${total}`),
+          createCell(`${billingData.secondFloorPercentage.toFixed(2)}%`),
+          createCell(
+            `PHP ${billingData.secondFloorAmount.toLocaleString(undefined, {
+              maximumFractionDigits: 2,
+            })}`
+          ),
         ],
       }),
-      // Total row
       new TableRow({
         children: [
           createCell('TOTAL', true),
           createCell(''),
           createCell(''),
-          createCell('₱' + billingData.amount.toLocaleString(undefined, { maximumFractionDigits: 2 }), true),
+          createCell(`PHP ${total}`, true),
         ],
       }),
     ],
   })
-
-  const sections = []
-
-  // Create 3 copies of the billing
-  for (let copy = 1; copy <= 3; copy++) {
-    const copyParagraphs: Paragraph[] = []
-
-    // Title
-    copyParagraphs.push(
-      new Paragraph({
-        text: `${billingData.unitName} - ${billingData.type}`,
-        alignment: AlignmentType.CENTER,
-        spacing: { line: 240, after: 120 },
-        runs: [new TextRun({ text: `${billingData.unitName} - ${billingData.type}`, bold: true, size: 28 })],
-      })
-    )
-
-    copyParagraphs.push(
-      new Paragraph({
-        text: `${new Date(billingData.dueDate).toLocaleDateString()}`,
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 240 },
-      })
-    )
-
-    // Table 1
-    copyParagraphs.push(
-      new Paragraph({
-        text: 'Consumption Breakdown',
-        spacing: { after: 120 },
-        runs: [new TextRun({ text: 'Consumption Breakdown', bold: true })],
-      })
-    )
-    copyParagraphs.push(new Paragraph({ text: '', children: [table1] }))
-
-    copyParagraphs.push(new Paragraph({ text: '', spacing: { after: 240 } }))
-
-    // Table 2
-    copyParagraphs.push(
-      new Paragraph({
-        text: 'Amount Breakdown',
-        spacing: { after: 120 },
-        runs: [new TextRun({ text: 'Amount Breakdown', bold: true })],
-      })
-    )
-    copyParagraphs.push(new Paragraph({ text: '', children: [table2] }))
-
-    // Footer
-    copyParagraphs.push(
-      new Paragraph({
-        text: '',
-        spacing: { after: 240 },
-      })
-    )
-
-    copyParagraphs.push(
-      new Paragraph({
-        text: `Prepared by: ${billingData.preparedBy}`,
-        spacing: { after: 60 },
-      })
-    )
-
-    copyParagraphs.push(
-      new Paragraph({
-        text: `Date: ${new Date().toLocaleDateString()}`,
-      })
-    )
-
-    copyParagraphs.push(
-      new Paragraph({
-        text: `Status: ${billingData.remarks}`,
-        spacing: { after: 240 },
-      })
-    )
-
-    copyParagraphs.push(
-      new Paragraph({
-        text: `--- Copy ${copy} of 3 ---`,
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 480 },
-      })
-    )
-
-    sections.push(...copyParagraphs)
-  }
-
-  const document = new Document({
-    sections: [
-      {
-        children: sections,
-      },
-    ],
-  })
-
-  const buffer = await Packer.toBuffer(document)
-  return buffer
 }
 
-function createCell(text: string, bold = false): TableCell {
-  return new TableCell({
-    children: [
+export async function generateBillingDocument(billingData: BillingDataForExport): Promise<Blob> {
+  const children: (Paragraph | Table)[] = []
+
+  for (let copy = 1; copy <= 3; copy++) {
+    children.push(
       new Paragraph({
-        text: text,
-        runs: bold ? [new TextRun({ text: text, bold: true })] : undefined,
-      }),
-    ],
-    shading: bold ? { fill: 'D3D3D3' } : undefined,
-    margins: { top: 60, bottom: 60, left: 60, right: 60 },
-    verticalAlign: VerticalAlign.CENTER,
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 120 },
+        children: [
+          new TextRun({
+            text: `${billingData.unitName} (${billingData.type}) - ${new Date(
+              billingData.currentDate
+            ).toLocaleDateString()}`,
+            bold: true,
+            size: 28,
+          }),
+        ],
+      })
+    )
+
+    children.push(
+      new Paragraph({
+        text: 'Consumption Breakdown',
+        spacing: { after: 80 },
+        children: [new TextRun({ text: 'Consumption Breakdown', bold: true })],
+      })
+    )
+
+    children.push(buildConsumptionTable(billingData))
+    children.push(new Paragraph({ text: '', spacing: { after: 160 } }))
+
+    children.push(
+      new Paragraph({
+        text: 'Amount Breakdown',
+        spacing: { after: 80 },
+        children: [new TextRun({ text: 'Amount Breakdown', bold: true })],
+      })
+    )
+    children.push(buildAmountTable(billingData))
+    children.push(new Paragraph({ text: '', spacing: { after: 160 } }))
+
+    children.push(new Paragraph({ text: `Prepared by: ${billingData.preparedBy}` }))
+    children.push(new Paragraph({ text: `Date: ${new Date().toLocaleDateString()}` }))
+    children.push(new Paragraph({ text: `Status: ${billingData.remarks}` }))
+
+    if (copy < 3) {
+      children.push(
+        new Paragraph({
+          text: '',
+          pageBreakBefore: true,
+        })
+      )
+    }
+  }
+
+  const doc = new Document({
+    sections: [{ children }],
   })
+
+  return Packer.toBlob(doc)
 }

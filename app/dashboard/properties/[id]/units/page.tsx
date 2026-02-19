@@ -19,6 +19,7 @@ export default function UnitsPage() {
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [tenantMap, setTenantMap] = useState<Map<string, any>>(new Map())
+  const [selectedUnit, setSelectedUnit] = useState<any>(null)
 
   useEffect(() => {
     loadData()
@@ -55,6 +56,18 @@ export default function UnitsPage() {
       setUnits(units.filter((u) => u.id !== id))
     } catch (error) {
       console.error('Error deleting unit:', error)
+    }
+  }
+
+  const handleEdit = (unit: any) => {
+    setSelectedUnit(unit)
+    setFormOpen(true)
+  }
+
+  const handleFormOpenChange = (open: boolean) => {
+    setFormOpen(open)
+    if (!open) {
+      setSelectedUnit(null)
     }
   }
 
@@ -134,6 +147,14 @@ export default function UnitsPage() {
 
                   <div className="flex gap-2">
                     <Button
+                      onClick={() => handleEdit(unit)}
+                      variant="outline"
+                      size="sm"
+                      className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                    >
+                      <Edit size={16} />
+                    </Button>
+                    <Button
                       onClick={() => handleDelete(unit.id)}
                       variant="outline"
                       size="sm"
@@ -151,8 +172,9 @@ export default function UnitsPage() {
 
       <UnitForm
         open={formOpen}
-        onOpenChange={setFormOpen}
+        onOpenChange={handleFormOpenChange}
         propertyId={propertyId}
+        unit={selectedUnit || undefined}
         onSuccess={loadData}
       />
     </div>

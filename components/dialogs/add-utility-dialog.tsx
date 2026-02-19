@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { createUtility } from '@/lib/api/utilities'
+import { useEffect, useState } from 'react'
+import { createUtility, updateUtility } from '@/lib/api/utilities'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,11 +21,18 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
+interface UnitOption {
+  id: string
+  label: string
+}
+
 interface AddUtilityDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
   unitId?: string
+  units?: UnitOption[]
+  editingUtility?: any
 }
 
 export function AddUtilityDialog({
@@ -33,6 +40,8 @@ export function AddUtilityDialog({
   onOpenChange,
   onSuccess,
   unitId,
+  units = [],
+  editingUtility,
 }: AddUtilityDialogProps) {
   const [selectedUnitId, setSelectedUnitId] = useState(unitId || '')
   const [type, setType] = useState<'MNWD' | 'Casureco'>('MNWD')
@@ -45,31 +54,64 @@ export function AddUtilityDialog({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (editingUtility) {
+      setSelectedUnitId(editingUtility.unit_id)
+      setType(editingUtility.type)
+      setDueDate(editingUtility.due_date)
+      setDateOfReading(editingUtility.date_of_reading)
+      setUnitReading(editingUtility.unit_reading?.toString() || '')
+      setFirstFloorReading(editingUtility.first_floor_reading?.toString() || '')
+      setSecondFloorReading(editingUtility.second_floor_reading?.toString() || '')
+      setAmount(editingUtility.amount?.toString() || '')
+      return
+    }
+
+    setSelectedUnitId(unitId || '')
+    setType('MNWD')
+    setDueDate('')
+    setDateOfReading('')
+    setUnitReading('')
+    setFirstFloorReading('')
+    setSecondFloorReading('')
+    setAmount('')
+    setError(null)
+  }, [editingUtility, open, unitId])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
 
     try {
-      await createUtility(
-        selectedUnitId,
-        type,
-        dueDate,
-        dateOfReading,
-        parseFloat(unitReading),
-        parseFloat(firstFloorReading),
-        parseFloat(secondFloorReading),
-        parseFloat(amount)
-      )
+      if (!selectedUnitId) {
+        throw new Error('Please select a unit')
+      }
 
-      setSelectedUnitId(unitId || '')
-      setType('MNWD')
-      setDueDate('')
-      setDateOfReading('')
-      setUnitReading('')
-      setFirstFloorReading('')
-      setSecondFloorReading('')
-      setAmount('')
+      if (editingUtility) {
+        await updateUtility(editingUtility.id, {
+          unit_id: selectedUnitId,
+          type,
+          due_date: dueDate,
+          date_of_reading: dateOfReading,
+          unit_reading: parseFloat(unitReading),
+          first_floor_reading: parseFloat(firstFloorReading),
+          second_floor_reading: parseFloat(secondFloorReading),
+          amount: parseFloat(amount),
+        })
+      } else {
+        await createUtility(
+          selectedUnitId,
+          type,
+          dueDate,
+          dateOfReading,
+          parseFloat(unitReading),
+          parseFloat(firstFloorReading),
+          parseFloat(secondFloorReading),
+          parseFloat(amount)
+        )
+      }
+
       onOpenChange(false)
       onSuccess()
     } catch (err) {
@@ -79,29 +121,49 @@ export function AddUtilityDialog({
     }
   }
 
+  const isEditMode = Boolean(editingUtility)
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-slate-800 border-slate-700 max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-white">Add Utility Reading</DialogTitle>
+          <DialogTitle className="text-white">{isEditMode ? 'Edit Utility Reading' : 'Add Utility Reading'}</DialogTitle>
           <DialogDescription className="text-slate-400">
             Enter the utility billing details
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 max-h-96 overflow-y-auto">
+          {units.length > 0 && (
+            <div>
+              <Label className="text-slate-200">Unit</Label>
+              <Select value={selectedUnitId} onValueChange={setSelectedUnitId}>
+                <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-700 border-slate-600">
+                  {units.map((unit) => (
+                    <SelectItem key={unit.id} value={unit.id} className="text-white">
+                      {unit.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div>
-            <Label className="text-slate-200">Utility Type</Label>
-            <Select value={type} onValueChange={(value: any) => setType(value)}>
+            <Label className="text-slate-200">Type</Label>
+            <Select value={type} onValueChange={(value: 'MNWD' | 'Casureco') => setType(value)}>
               <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-slate-700 border-slate-600">
                 <SelectItem value="MNWD" className="text-white">
-                  MNWD (Water)
+                  MNWD
                 </SelectItem>
                 <SelectItem value="Casureco" className="text-white">
-                  Casureco (Electricity)
+                  Casureco
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -124,7 +186,7 @@ export function AddUtilityDialog({
 
             <div>
               <Label htmlFor="date_of_reading" className="text-slate-200">
-                Reading Date
+                Date of Reading
               </Label>
               <Input
                 id="date_of_reading"
@@ -139,7 +201,7 @@ export function AddUtilityDialog({
 
           <div>
             <Label htmlFor="unit_reading" className="text-slate-200">
-              Unit Reading (Total)
+              Unit Reading
             </Label>
             <Input
               id="unit_reading"
@@ -155,7 +217,7 @@ export function AddUtilityDialog({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="first_floor" className="text-slate-200">
-                1st Floor Reading
+                First Floor Reading
               </Label>
               <Input
                 id="first_floor"
@@ -170,7 +232,7 @@ export function AddUtilityDialog({
 
             <div>
               <Label htmlFor="second_floor" className="text-slate-200">
-                2nd Floor Reading
+                Second Floor Reading
               </Label>
               <Input
                 id="second_floor"
@@ -186,7 +248,7 @@ export function AddUtilityDialog({
 
           <div>
             <Label htmlFor="amount" className="text-slate-200">
-              Amount (₱)
+              Amount
             </Label>
             <Input
               id="amount"
@@ -219,7 +281,7 @@ export function AddUtilityDialog({
               disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
-              {loading ? 'Adding...' : 'Add Reading'}
+              {loading ? (isEditMode ? 'Saving...' : 'Adding...') : isEditMode ? 'Save Changes' : 'Add Reading'}
             </Button>
           </DialogFooter>
         </form>

@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { getPropertiesWithUnits } from '@/lib/api/properties'
-import { getRentPayments, recordRentPayment } from '@/lib/api/rent-payments'
+import { deleteRentPayment, getRentPayments } from '@/lib/api/rent-payments'
 import { getTenantByUnit } from '@/lib/api/tenants'
-import { getCurrentUser } from '@/lib/api/users'
+import { getCurrentUser, getUsersMapByIds } from '@/lib/api/users'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { RentPaymentDialog } from '@/components/dialogs/rent-payment-dialog'
 
 export function RentTracker() {
@@ -17,6 +17,7 @@ export function RentTracker() {
   const [tenants, setTenants] = useState<Map<string, any>>(new Map())
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [recordedByNames, setRecordedByNames] = useState<Map<string, string>>(new Map())
   const [selectedPayment, setSelectedPayment] = useState<{
     unitId: string
     year: number
@@ -59,6 +60,11 @@ export function RentTracker() {
 
       setRentPayments(paymentsMap)
       setTenants(tenantsMap)
+      const userIds = Array.from(paymentsMap.values())
+        .map((payment: any) => payment.recorded_by_user_id)
+        .filter(Boolean)
+      const userNames = await getUsersMapByIds(userIds)
+      setRecordedByNames(userNames)
     } catch (error) {
       console.error('Error loading rent tracker data:', error)
     } finally {
@@ -77,6 +83,16 @@ export function RentTracker() {
 
   const nextMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
+  }
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!confirm('Delete this rent payment record?')) return
+    try {
+      await deleteRentPayment(paymentId)
+      await loadData()
+    } catch (error) {
+      console.error('Error deleting rent payment:', error)
+    }
   }
 
   if (loading) {
@@ -163,16 +179,30 @@ export function RentTracker() {
                         {payment && (
                           <div className="flex-1">
                             <p className="text-sm text-slate-400">Recorded By</p>
-                            <p className="text-white text-sm">{payment.recorded_by_user_id}</p>
+                            <p className="text-white text-sm">
+                              {recordedByNames.get(payment.recorded_by_user_id) || payment.recorded_by_user_id}
+                            </p>
                           </div>
                         )}
                       </div>
-                      <Button
-                        onClick={() => setSelectedPayment({ unitId: unit.id, year, month })}
-                        className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        Record Payment
-                      </Button>
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          onClick={() => setSelectedPayment({ unitId: unit.id, year, month })}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          Record Payment
+                        </Button>
+                        {payment && (
+                          <Button
+                            onClick={() => handleDeletePayment(payment.id)}
+                            variant="outline"
+                            size="icon"
+                            className="border-red-600/50 text-red-400 hover:bg-red-900/20"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   )
                 })}

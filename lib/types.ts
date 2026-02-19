@@ -2,6 +2,7 @@ export type User = {
   id: string
   email: string
   full_name: string
+  phone_number: string | null
 }
 
 export type RentalProperty = {
@@ -18,9 +19,17 @@ export type Unit = {
   rental_property_id: string
   name: string
   track_utilities: boolean
+  paired_unit_id: string | null
   contract_address: string
   rent_amount: number
   cash_bond_amount: number
+  created_at: string
+}
+
+export type UnitPairing = {
+  id: string
+  first_unit_id: string
+  second_unit_id: string
   created_at: string
 }
 

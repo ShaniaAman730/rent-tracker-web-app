@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { getPropertiesWithUnits } from '@/lib/api/properties'
-import { getUtilitiesWithPayments, recordUtilityPayment } from '@/lib/api/utilities'
+import { deleteUtilityPayment, getUtilitiesWithPayments } from '@/lib/api/utilities'
 import { getTenantByUnit } from '@/lib/api/tenants'
-import { getCurrentUser } from '@/lib/api/users'
+import { getCurrentUser, getUsersMapByIds } from '@/lib/api/users'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { UtilityPaymentDialog } from '@/components/dialogs/utility-payment-dialog'
 
 export function UtilitiesTracker() {
@@ -18,6 +18,7 @@ export function UtilitiesTracker() {
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [selectedUtility, setSelectedUtility] = useState<any>(null)
+  const [recordedByNames, setRecordedByNames] = useState<Map<string, string>>(new Map())
 
   useEffect(() => {
     loadData()
@@ -53,6 +54,15 @@ export function UtilitiesTracker() {
 
       setUtilitiesMap(utilitiesData)
       setTenants(tenantsMap)
+      const userIds: string[] = []
+      for (const utilityList of utilitiesData.values()) {
+        for (const utility of utilityList) {
+          if (utility.payment?.recorded_by_user_id) {
+            userIds.push(utility.payment.recorded_by_user_id)
+          }
+        }
+      }
+      setRecordedByNames(await getUsersMapByIds(userIds))
     } catch (error) {
       console.error('Error loading utilities tracker data:', error)
     } finally {
@@ -71,6 +81,16 @@ export function UtilitiesTracker() {
 
   const nextMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
+  }
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!confirm('Delete this utility payment record?')) return
+    try {
+      await deleteUtilityPayment(paymentId)
+      await loadData()
+    } catch (error) {
+      console.error('Error deleting utility payment:', error)
+    }
   }
 
   if (loading) {
@@ -179,18 +199,31 @@ export function UtilitiesTracker() {
                                     <div className="flex-1">
                                       <p className="text-sm text-slate-400">Recorded By</p>
                                       <p className="text-white text-xs">
-                                        {utility.payment.recorded_by_user_id}
+                                        {recordedByNames.get(utility.payment.recorded_by_user_id) ||
+                                          utility.payment.recorded_by_user_id}
                                       </p>
                                     </div>
                                   )}
                                 </div>
                               </div>
-                              <Button
-                                onClick={() => setSelectedUtility(utility)}
-                                className="ml-2 bg-blue-600 hover:bg-blue-700 text-white text-xs"
-                              >
-                                Record
-                              </Button>
+                              <div className="ml-2 flex gap-2">
+                                <Button
+                                  onClick={() => setSelectedUtility(utility)}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                                >
+                                  Record
+                                </Button>
+                                {utility.payment && (
+                                  <Button
+                                    onClick={() => handleDeletePayment(utility.payment.id)}
+                                    variant="outline"
+                                    size="icon"
+                                    className="border-red-600/50 text-red-400 hover:bg-red-900/20"
+                                  >
+                                    <Trash2 size={16} />
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createProperty, updateProperty } from '@/lib/api/properties'
 import { RentalProperty } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -29,6 +29,14 @@ export function PropertyForm({ open, onOpenChange, property, onSuccess }: Proper
   const [noUnits, setNoUnits] = useState(property?.no_units.toString() || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setName(property?.name || '')
+    setAddress(property?.address || '')
+    setCode(property?.code || '')
+    setNoUnits(property?.no_units?.toString() || '')
+    setError(null)
+  }, [property, open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

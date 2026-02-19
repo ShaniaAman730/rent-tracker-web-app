@@ -12,6 +12,7 @@ export default function PropertiesPage() {
   const [properties, setProperties] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
+  const [selectedProperty, setSelectedProperty] = useState<any>(null)
 
   useEffect(() => {
     loadProperties()
@@ -37,6 +38,18 @@ export default function PropertiesPage() {
       setProperties(properties.filter((p) => p.id !== id))
     } catch (error) {
       console.error('Error deleting property:', error)
+    }
+  }
+
+  const handleEditProperty = (property: any) => {
+    setSelectedProperty(property)
+    setFormOpen(true)
+  }
+
+  const handleCloseForm = (open: boolean) => {
+    setFormOpen(open)
+    if (!open) {
+      setSelectedProperty(null)
     }
   }
 
@@ -98,6 +111,14 @@ export default function PropertiesPage() {
                     </Link>
                   </Button>
                   <Button
+                    onClick={() => handleEditProperty(property)}
+                    variant="outline"
+                    size="sm"
+                    className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                  >
+                    <Edit size={16} />
+                  </Button>
+                  <Button
                     onClick={() => handleDelete(property.id)}
                     variant="outline"
                     size="sm"
@@ -112,7 +133,12 @@ export default function PropertiesPage() {
         </div>
       )}
 
-      <PropertyForm open={formOpen} onOpenChange={setFormOpen} onSuccess={loadProperties} />
+      <PropertyForm
+        open={formOpen}
+        onOpenChange={handleCloseForm}
+        property={selectedProperty || undefined}
+        onSuccess={loadProperties}
+      />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createUnit, updateUnit } from '@/lib/api/units'
 import { Unit } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -32,6 +32,15 @@ export function UnitForm({ open, onOpenChange, propertyId, unit, onSuccess }: Un
   const [cashBondAmount, setCashBondAmount] = useState(unit?.cash_bond_amount.toString() || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setName(unit?.name || '')
+    setTrackUtilities(unit?.track_utilities || false)
+    setContractAddress(unit?.contract_address || '')
+    setRentAmount(unit?.rent_amount?.toString() || '')
+    setCashBondAmount(unit?.cash_bond_amount?.toString() || '')
+    setError(null)
+  }, [unit, open])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
