@@ -83,7 +83,7 @@ export function groupUtilitiesForBilling(
   utilities
     .filter((u) => u.type === type)
     .forEach((utility) => {
-      const key = utility.unit_id
+      const key = utility.pairing_id || utility.unit_id || 'unknown'
       if (!grouped.has(key)) {
         grouped.set(key, [])
       }

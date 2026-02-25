@@ -4,37 +4,25 @@ import { Utility, UtilityPayment } from '@/lib/types'
 const supabase = createClient()
 
 // Utility functions
-export async function getUtilitiesByUnit(unitId: string): Promise<Utility[]> {
+export async function getUtilitiesByPairing(pairingId: string): Promise<Utility[]> {
   const { data, error } = await supabase
     .from('utility')
     .select('*')
-    .eq('unit_id', unitId)
+    .eq('pairing_id', pairingId)
     .order('due_date', { ascending: false })
 
   if (error) throw error
   return data || []
 }
 
-export async function getUtilitiesByUnitIds(unitIds: string[]): Promise<Utility[]> {
-  if (unitIds.length === 0) return []
-  const { data, error } = await supabase
-    .from('utility')
-    .select('*')
-    .in('unit_id', unitIds)
-    .order('due_date', { ascending: false })
-
-  if (error) throw error
-  return data || []
-}
-
-export async function getUtilitiesByUnitAndType(
-  unitId: string,
+export async function getUtilitiesByPairingAndType(
+  pairingId: string,
   type: 'MNWD' | 'Casureco'
 ): Promise<Utility[]> {
   const { data, error } = await supabase
     .from('utility')
     .select('*')
-    .eq('unit_id', unitId)
+    .eq('pairing_id', pairingId)
     .eq('type', type)
     .order('due_date', { ascending: false })
 
@@ -56,7 +44,7 @@ export async function getUtilitiesByType(
 }
 
 export async function createUtility(
-  unitId: string,
+  pairingId: string,
   type: 'MNWD' | 'Casureco',
   dueDate: string,
   dateOfReading: string,
@@ -65,10 +53,28 @@ export async function createUtility(
   secondFloorReading: number,
   amount: number
 ): Promise<Utility> {
+  const readingDate = new Date(dateOfReading)
+  const monthStart = new Date(Date.UTC(readingDate.getUTCFullYear(), readingDate.getUTCMonth(), 1))
+  const nextMonth = new Date(Date.UTC(readingDate.getUTCFullYear(), readingDate.getUTCMonth() + 1, 1))
+
+  const { data: existing, error: existingError } = await supabase
+    .from('utility')
+    .select('id')
+    .eq('pairing_id', pairingId)
+    .eq('type', type)
+    .gte('date_of_reading', monthStart.toISOString().slice(0, 10))
+    .lt('date_of_reading', nextMonth.toISOString().slice(0, 10))
+    .limit(1)
+
+  if (existingError) throw existingError
+  if (existing && existing.length > 0) {
+    throw new Error('A utility reading for this pair, type, and month already exists.')
+  }
+
   const { data, error } = await supabase
     .from('utility')
     .insert({
-      unit_id: unitId,
+      pairing_id: pairingId,
       type,
       due_date: dueDate,
       date_of_reading: dateOfReading,
@@ -85,6 +91,27 @@ export async function createUtility(
 }
 
 export async function updateUtility(id: string, updates: Partial<Utility>): Promise<Utility> {
+  if (updates.pairing_id && updates.type && updates.date_of_reading) {
+    const readingDate = new Date(updates.date_of_reading)
+    const monthStart = new Date(Date.UTC(readingDate.getUTCFullYear(), readingDate.getUTCMonth(), 1))
+    const nextMonth = new Date(Date.UTC(readingDate.getUTCFullYear(), readingDate.getUTCMonth() + 1, 1))
+
+    const { data: existing, error: existingError } = await supabase
+      .from('utility')
+      .select('id')
+      .eq('pairing_id', updates.pairing_id)
+      .eq('type', updates.type)
+      .gte('date_of_reading', monthStart.toISOString().slice(0, 10))
+      .lt('date_of_reading', nextMonth.toISOString().slice(0, 10))
+      .neq('id', id)
+      .limit(1)
+
+    if (existingError) throw existingError
+    if (existing && existing.length > 0) {
+      throw new Error('A utility reading for this pair, type, and month already exists.')
+    }
+  }
+
   const { data, error } = await supabase
     .from('utility')
     .update(updates)
@@ -117,7 +144,8 @@ export async function getUtilityPayment(utilityId: string): Promise<UtilityPayme
 export async function recordUtilityPayment(
   utilityId: string,
   paid: boolean,
-  recordedByUserId: string
+  recordedByUserId: string,
+  comments: string | null
 ): Promise<UtilityPayment> {
   // Check if payment record exists
   const existing = await getUtilityPayment(utilityId)
@@ -130,6 +158,7 @@ export async function recordUtilityPayment(
         paid,
         recorded_by_user_id: recordedByUserId,
         recorded_date: new Date().toISOString(),
+        comments,
       })
       .eq('id', existing.id)
       .select()
@@ -146,6 +175,7 @@ export async function recordUtilityPayment(
         paid,
         recorded_by_user_id: recordedByUserId,
         recorded_date: new Date().toISOString(),
+        comments,
       })
       .select()
       .single()
@@ -162,13 +192,13 @@ export async function deleteUtilityPayment(id: string): Promise<void> {
 }
 
 // Helper function to get utilities with payment info
-export async function getUtilitiesWithPayments(unitId: string, type?: 'MNWD' | 'Casureco') {
+export async function getUtilitiesWithPayments(pairingId: string, type?: 'MNWD' | 'Casureco') {
   let utilities: Utility[] = []
 
   if (type) {
-    utilities = await getUtilitiesByUnitAndType(unitId, type)
+    utilities = await getUtilitiesByPairingAndType(pairingId, type)
   } else {
-    utilities = await getUtilitiesByUnit(unitId)
+    utilities = await getUtilitiesByPairing(pairingId)
   }
 
   const withPayments = await Promise.all(
@@ -181,13 +211,21 @@ export async function getUtilitiesWithPayments(unitId: string, type?: 'MNWD' | '
   return withPayments
 }
 
-export async function getUtilitiesWithPaymentsForUnits(
-  unitIds: string[],
+export async function getUtilitiesWithPaymentsForPairings(
+  pairingIds: string[],
   type?: 'MNWD' | 'Casureco'
 ) {
-  if (unitIds.length === 0) return []
+  if (pairingIds.length === 0) return []
 
-  let utilities = await getUtilitiesByUnitIds(unitIds)
+  const { data, error } = await supabase
+    .from('utility')
+    .select('*')
+    .in('pairing_id', pairingIds)
+    .order('due_date', { ascending: false })
+
+  if (error) throw error
+
+  let utilities = data || []
   if (type) {
     utilities = utilities.filter((utility) => utility.type === type)
   }

@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -14,15 +13,27 @@ import {
   FileText,
   LogOut,
   UserCog,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from 'lucide-react'
 import { User } from '@supabase/supabase-js'
 
 interface SidebarProps {
   user: User | null
+  collapsed: boolean
+  mobileOpen: boolean
+  onToggleCollapse: () => void
+  onCloseMobile: () => void
 }
 
-export function Sidebar({ user }: SidebarProps) {
-  const [isOpen, setIsOpen] = useState(false)
+export function Sidebar({
+  user,
+  collapsed,
+  mobileOpen,
+  onToggleCollapse,
+  onCloseMobile,
+}: SidebarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const supabase = createClient()
@@ -45,51 +56,89 @@ export function Sidebar({ user }: SidebarProps) {
   ]
 
   return (
-    <aside className="w-64 bg-slate-800 border-r border-slate-700 flex flex-col h-screen">
-      {/* Header */}
-      <div className="p-6 border-b border-slate-700">
-        <h2 className="text-xl font-bold text-white">RT</h2>
-      </div>
+    <>
+      {mobileOpen && (
+        <button
+          type="button"
+          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          onClick={onCloseMobile}
+          aria-label="Close sidebar overlay"
+        />
+      )}
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-        {menuItems.map((item) => {
-          const Icon = item.icon
-          const active = isActive(item.path)
-          return (
-            <Link
-              key={item.path}
-              href={item.path}
-              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
-                active
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-700 hover:text-white'
-              }`}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-slate-700 bg-slate-800 transition-all duration-200 lg:sticky lg:translate-x-0 ${
+          collapsed ? 'w-20' : 'w-64'
+        } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        <div className="flex items-center justify-between border-b border-slate-700 p-4">
+          <h2 className="text-xl font-bold text-white">{collapsed ? 'RT' : 'Rent Tracker'}</h2>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={onToggleCollapse}
+              variant="ghost"
+              size="icon"
+              className="hidden text-slate-300 hover:bg-slate-700 hover:text-white lg:inline-flex"
             >
-              <Icon size={20} />
-              <span className="text-sm font-medium">{item.label}</span>
-            </Link>
-          )
-        })}
-      </nav>
-
-      {/* User Section */}
-      <div className="p-4 border-t border-slate-700 space-y-3">
-        <div className="px-4 py-3 bg-slate-700 rounded-lg">
-          <p className="text-xs text-slate-400">Signed in as</p>
-          <p className="text-sm font-medium text-white truncate">
-            {user?.user_metadata?.full_name || user?.email}
-          </p>
+              {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            </Button>
+            <Button
+              onClick={onCloseMobile}
+              variant="ghost"
+              size="icon"
+              className="text-slate-300 hover:bg-slate-700 hover:text-white lg:hidden"
+            >
+              <X size={16} />
+            </Button>
+          </div>
         </div>
-        <Button
-          onClick={handleLogout}
-          variant="outline"
-          className="w-full text-slate-300 border-slate-600 hover:bg-slate-700"
-        >
-          <LogOut size={16} className="mr-2" />
-          Logout
-        </Button>
-      </div>
-    </aside>
+
+        <nav className="flex-1 space-y-2 overflow-y-auto p-3">
+          {menuItems.map((item) => {
+            const Icon = item.icon
+            const active = isActive(item.path)
+            return (
+              <Link
+                key={item.path}
+                href={item.path}
+                onClick={onCloseMobile}
+                className={`flex items-center rounded-lg px-3 py-2 transition-colors ${
+                  active
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-300 hover:bg-slate-700 hover:text-white'
+                } ${collapsed ? 'justify-center' : 'gap-3'}`}
+                title={item.label}
+              >
+                <Icon size={20} />
+                {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
+              </Link>
+            )
+          })}
+        </nav>
+
+        <div className="space-y-3 border-t border-slate-700 p-3">
+          <div className="rounded-lg bg-slate-700 px-3 py-2">
+            {!collapsed && (
+              <>
+                <p className="text-xs text-slate-400">Signed in as</p>
+                <p className="truncate text-sm font-medium text-white">
+                  {user?.user_metadata?.full_name || user?.email}
+                </p>
+              </>
+            )}
+            {collapsed && <p className="truncate text-xs text-white">{user?.email}</p>}
+          </div>
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            className={`border-slate-600 text-slate-300 hover:bg-slate-700 ${collapsed ? 'w-10 px-0' : 'w-full'}`}
+            title="Logout"
+          >
+            <LogOut size={16} className={collapsed ? '' : 'mr-2'} />
+            {!collapsed && 'Logout'}
+          </Button>
+        </div>
+      </aside>
+    </>
   )
 }

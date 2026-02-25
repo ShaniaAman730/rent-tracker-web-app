@@ -5,7 +5,7 @@ import { getPropertiesWithUnits } from '@/lib/api/properties'
 import { getCurrentUser, getUsersMapByIds } from '@/lib/api/users'
 import {
   deleteUtility,
-  getUtilitiesWithPaymentsForUnits,
+  getUtilitiesWithPaymentsForPairings,
   touchUtilityPaymentRecorder,
 } from '@/lib/api/utilities'
 import {
@@ -51,7 +51,6 @@ export default function ComputeUtilitiesPage() {
   const [newFirstUnitId, setNewFirstUnitId] = useState<string>('')
   const [newSecondUnitId, setNewSecondUnitId] = useState<string>('')
 
-  const [utilityFilterByUnit, setUtilityFilterByUnit] = useState<string>('all')
   const [showAllMnwd, setShowAllMnwd] = useState(false)
   const [showAllCasureco, setShowAllCasureco] = useState(false)
 
@@ -71,7 +70,7 @@ export default function ComputeUtilitiesPage() {
   useEffect(() => {
     if (!selectedPairing) return
     loadUtilitiesForSelectedPairing()
-  }, [selectedPairingId, utilityFilterByUnit])
+  }, [selectedPairingId])
 
   async function loadData() {
     try {
@@ -128,35 +127,16 @@ export default function ComputeUtilitiesPage() {
 
   const selectedPairLabel = useMemo(() => {
     if (selectedPairUnits.length !== 2) return ''
-    return `${selectedPairUnits[0].name} + ${selectedPairUnits[1].name}`
-  }, [selectedPairUnits])
-
-  const utilityUnitFilterOptions = useMemo(() => {
-    const options = [{ id: 'all', label: 'All Units' }]
-    for (const unit of selectedPairUnits) {
-      options.push({ id: unit.id, label: unit.name })
-    }
-    return options
+    return `${selectedPairUnits[0].name} (First Floor) + ${selectedPairUnits[1].name} (Second Floor)`
   }, [selectedPairUnits])
 
   async function loadUtilitiesForSelectedPairing() {
     if (!selectedPairing) return
     try {
-      const unitIds = [selectedPairing.first_unit_id, selectedPairing.second_unit_id]
-      const utilities = await getUtilitiesWithPaymentsForUnits(unitIds)
-
-      const withUnitName = utilities.map((utility: any) => ({
-        ...utility,
-        unit_name: unitsById.get(utility.unit_id)?.name || 'Unknown Unit',
-      }))
-
-      const filteredByUnit =
-        utilityFilterByUnit === 'all'
-          ? withUnitName
-          : withUnitName.filter((utility: any) => utility.unit_id === utilityFilterByUnit)
+      const utilities = await getUtilitiesWithPaymentsForPairings([selectedPairing.id])
 
       const sortedByTypeAndDate = (type: UtilityType) =>
-        filteredByUnit
+        utilities
           .filter((utility: any) => utility.type === type)
           .sort(
             (a: any, b: any) =>
@@ -168,7 +148,7 @@ export default function ComputeUtilitiesPage() {
       setMnwdUtilities(mnwd)
       setCasurecoUtilities(casureco)
 
-      const userIds = filteredByUnit
+      const userIds = utilities
         .map((utility: any) => utility.payment?.recorded_by_user_id)
         .filter(Boolean)
       setRecordedByNames(await getUsersMapByIds(userIds))
@@ -180,7 +160,7 @@ export default function ComputeUtilitiesPage() {
   const getPreviousReading = (utility: any, list: any[]) => {
     return list.find(
       (candidate) =>
-        candidate.unit_id === utility.unit_id &&
+        candidate.id !== utility.id &&
         new Date(candidate.date_of_reading).getTime() < new Date(utility.date_of_reading).getTime()
     )
   }
@@ -237,12 +217,12 @@ export default function ComputeUtilitiesPage() {
 
     const list = exportUtilityType === 'MNWD' ? mnwdUtilities : casurecoUtilities
     if (list.length < 2) {
-      alert('At least two records are required to generate billing.')
+      alert('First entry has no previous reading. Add another month before exporting.')
       return
     }
 
     const current = list[0]
-    const previous = list.find((item) => item.unit_id === current.unit_id && item.id !== current.id) || list[1]
+    const previous = list[1]
     if (!previous) {
       alert('Previous reading not found.')
       return
@@ -251,11 +231,11 @@ export default function ComputeUtilitiesPage() {
     const billingData = calculateBillingData(
       previous,
       current,
-      selectedPairLabel || current.unit_name,
+      selectedPairLabel,
       currentUser.full_name
     )
 
-    const fileBase = `${selectedPairLabel || current.unit_name}-${exportUtilityType}-${new Date(
+    const fileBase = `${selectedPairLabel}-${exportUtilityType}-${new Date(
       current.currentDate || current.date_of_reading
     )
       .toISOString()
@@ -337,7 +317,7 @@ export default function ComputeUtilitiesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-600">
-                  <th className="px-3 py-2 text-left text-slate-300">Unit Name</th>
+                  <th className="px-3 py-2 text-left text-slate-300">Pair</th>
                   <th className="px-3 py-2 text-left text-slate-300">Due Date</th>
                   <th className="px-3 py-2 text-left text-slate-300">Previous Date of Reading</th>
                   <th className="px-3 py-2 text-right text-slate-300">Previous Unit Reading</th>
@@ -356,7 +336,7 @@ export default function ComputeUtilitiesPage() {
                   const usage = previous ? utility.unit_reading - previous.unit_reading : null
                   return (
                     <tr key={utility.id} className="border-b border-slate-700 hover:bg-slate-700">
-                      <td className="px-3 py-2 text-white">{utility.unit_name}</td>
+                      <td className="px-3 py-2 text-white">{selectedPairLabel}</td>
                       <td className="px-3 py-2 text-slate-300">
                         {new Date(utility.due_date).toLocaleDateString()}
                       </td>
@@ -373,7 +353,7 @@ export default function ComputeUtilitiesPage() {
                         {Number(utility.unit_reading).toFixed(2)}
                       </td>
                       <td className="px-3 py-2 text-right text-slate-300">
-                        {usage === null ? '-' : usage.toFixed(2)}
+                        {usage === null ? 'N/A (first)' : usage.toFixed(2)}
                       </td>
                       <td className="px-3 py-2 text-right text-white">{formatMoney(utility.amount)}</td>
                       <td className="px-3 py-2 text-center text-slate-300">
@@ -444,6 +424,7 @@ export default function ComputeUtilitiesPage() {
             setEditingUtility(null)
             setFormOpen(true)
           }}
+          disabled={!selectedPairing}
           className="bg-blue-600 hover:bg-blue-700 text-white"
         >
           <Plus size={16} className="mr-2" />
@@ -496,7 +477,7 @@ export default function ComputeUtilitiesPage() {
       </Card>
 
       <Card className="p-6 border-slate-700 bg-slate-800">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div>
             <Label className="text-slate-200">Select Pair</Label>
             <Select value={selectedPairingId} onValueChange={setSelectedPairingId}>
@@ -507,22 +488,6 @@ export default function ComputeUtilitiesPage() {
                 {pairOptions.map((pair) => (
                   <SelectItem key={pair.id} value={pair.id} className="text-white">
                     {pair.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label className="text-slate-200">Filter by Unit Name</Label>
-            <Select value={utilityFilterByUnit} onValueChange={setUtilityFilterByUnit}>
-              <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-700 border-slate-600">
-                {utilityUnitFilterOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.id} className="text-white">
-                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -590,6 +555,11 @@ export default function ComputeUtilitiesPage() {
                   <Download size={16} className="mr-2" />
                   {exporting ? 'Generating...' : 'Generate Billing'}
                 </Button>
+                {((exportUtilityType === 'MNWD' ? mnwdUtilities.length : casurecoUtilities.length) < 2) && (
+                  <p className="text-xs text-amber-300 mt-2">
+                    First entry for this pair/type cannot be exported until a next monthly reading exists.
+                  </p>
+                )}
               </div>
             </div>
           </Card>
@@ -607,8 +577,8 @@ export default function ComputeUtilitiesPage() {
           if (!open) setEditingUtility(null)
         }}
         onSuccess={handleUtilityFormSuccess}
-        unitId={selectedPairUnits[0]?.id}
-        units={selectedPairUnits.map((unit) => ({ id: unit.id, label: unit.label }))}
+        pairingId={selectedPairing?.id}
+        pairLabel={selectedPairLabel}
         editingUtility={editingUtility}
       />
     </div>

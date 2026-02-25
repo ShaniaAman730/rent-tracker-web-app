@@ -21,17 +21,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-interface UnitOption {
-  id: string
-  label: string
-}
-
 interface AddUtilityDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
-  unitId?: string
-  units?: UnitOption[]
+  pairingId?: string
+  pairLabel?: string
   editingUtility?: any
 }
 
@@ -39,11 +34,11 @@ export function AddUtilityDialog({
   open,
   onOpenChange,
   onSuccess,
-  unitId,
-  units = [],
+  pairingId,
+  pairLabel,
   editingUtility,
 }: AddUtilityDialogProps) {
-  const [selectedUnitId, setSelectedUnitId] = useState(unitId || '')
+  const [selectedPairingId, setSelectedPairingId] = useState(pairingId || '')
   const [type, setType] = useState<'MNWD' | 'Casureco'>('MNWD')
   const [dueDate, setDueDate] = useState('')
   const [dateOfReading, setDateOfReading] = useState('')
@@ -56,7 +51,7 @@ export function AddUtilityDialog({
 
   useEffect(() => {
     if (editingUtility) {
-      setSelectedUnitId(editingUtility.unit_id)
+      setSelectedPairingId(editingUtility.pairing_id)
       setType(editingUtility.type)
       setDueDate(editingUtility.due_date)
       setDateOfReading(editingUtility.date_of_reading)
@@ -67,7 +62,7 @@ export function AddUtilityDialog({
       return
     }
 
-    setSelectedUnitId(unitId || '')
+    setSelectedPairingId(pairingId || '')
     setType('MNWD')
     setDueDate('')
     setDateOfReading('')
@@ -76,7 +71,7 @@ export function AddUtilityDialog({
     setSecondFloorReading('')
     setAmount('')
     setError(null)
-  }, [editingUtility, open, unitId])
+  }, [editingUtility, open, pairingId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,13 +79,13 @@ export function AddUtilityDialog({
     setLoading(true)
 
     try {
-      if (!selectedUnitId) {
-        throw new Error('Please select a unit')
+      if (!selectedPairingId) {
+        throw new Error('Please select a pair')
       }
 
       if (editingUtility) {
         await updateUtility(editingUtility.id, {
-          unit_id: selectedUnitId,
+          pairing_id: selectedPairingId,
           type,
           due_date: dueDate,
           date_of_reading: dateOfReading,
@@ -101,7 +96,7 @@ export function AddUtilityDialog({
         })
       } else {
         await createUtility(
-          selectedUnitId,
+          selectedPairingId,
           type,
           dueDate,
           dateOfReading,
@@ -134,23 +129,10 @@ export function AddUtilityDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 max-h-96 overflow-y-auto">
-          {units.length > 0 && (
-            <div>
-              <Label className="text-slate-200">Unit</Label>
-              <Select value={selectedUnitId} onValueChange={setSelectedUnitId}>
-                <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
-                  <SelectValue placeholder="Select unit" />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-700 border-slate-600">
-                  {units.map((unit) => (
-                    <SelectItem key={unit.id} value={unit.id} className="text-white">
-                      {unit.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div>
+            <Label className="text-slate-200">Pair</Label>
+            <Input value={pairLabel || ''} readOnly className="mt-1 bg-slate-700 border-slate-600 text-white" />
+          </div>
 
           <div>
             <Label className="text-slate-200">Type</Label>

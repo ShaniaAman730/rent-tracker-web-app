@@ -8,24 +8,10 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: 'My Rent Tracker',
-  description: 'Manage rental properties, track rent payments, and compute utilities',
-  generator: 'v0.app',
-  icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+  description: 'Rental Management App for Randy Aman',
+    icons: {
+    icon: "/favicon.ico",
+    apple: "/favicon.ico",
   },
 }
 

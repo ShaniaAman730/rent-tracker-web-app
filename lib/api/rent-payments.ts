@@ -46,7 +46,8 @@ export async function recordRentPayment(
   year: number,
   month: number,
   paid: boolean,
-  recordedByUserId: string
+  recordedByUserId: string,
+  comments: string | null
 ): Promise<RentPayment> {
   // Check if payment record exists
   const existing = await getRentPaymentForMonth(unitId, year, month)
@@ -59,6 +60,7 @@ export async function recordRentPayment(
         paid,
         recorded_by_user_id: recordedByUserId,
         recorded_date: new Date().toISOString(),
+        comments,
       })
       .eq('id', existing.id)
       .select()
@@ -77,6 +79,7 @@ export async function recordRentPayment(
         paid,
         recorded_by_user_id: recordedByUserId,
         recorded_date: new Date().toISOString(),
+        comments,
       })
       .select()
       .single()

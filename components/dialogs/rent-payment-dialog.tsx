@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Textarea } from '@/components/ui/textarea'
 
 interface RentPaymentDialogProps {
   unitId: string
@@ -32,6 +33,7 @@ export function RentPaymentDialog({
   onPaymentRecorded,
 }: RentPaymentDialogProps) {
   const [paid, setPaid] = useState<string>('true')
+  const [comments, setComments] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,7 +42,14 @@ export function RentPaymentDialog({
       setLoading(true)
       setError(null)
 
-      await recordRentPayment(unitId, year, month, paid === 'true', currentUser.id)
+      await recordRentPayment(
+        unitId,
+        year,
+        month,
+        paid === 'true',
+        currentUser.id,
+        comments.trim() || null
+      )
 
       onPaymentRecorded()
     } catch (err) {
@@ -80,6 +89,20 @@ export function RentPaymentDialog({
                 </Label>
               </div>
             </RadioGroup>
+          </div>
+
+          <div>
+            <Label htmlFor="rent_comments" className="text-slate-200">
+              Comments
+            </Label>
+            <Textarea
+              id="rent_comments"
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+              className="mt-1 bg-slate-700 border-slate-600 text-white"
+              placeholder="Optional notes"
+              rows={3}
+            />
           </div>
 
           <div className="bg-slate-700 p-3 rounded text-sm text-slate-300">

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Sidebar } from '@/components/sidebar'
 import { User } from '@supabase/supabase-js'
+import { Button } from '@/components/ui/button'
+import { Menu } from 'lucide-react'
 
 export default function DashboardLayout({
   children,
@@ -13,6 +15,8 @@ export default function DashboardLayout({
 }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -46,15 +50,31 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex h-screen bg-slate-900">
-      <Sidebar user={user} />
-      <main className="flex-1 overflow-auto">
-        <div className="bg-slate-800 border-b border-slate-700">
-          <div className="h-16 flex items-center px-6">
-            <h1 className="text-lg font-semibold text-white">My Rent Tracker</h1>
+    <div className="flex min-h-screen bg-slate-900">
+      <Sidebar
+        user={user}
+        collapsed={sidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+      />
+      <main className="min-w-0 flex-1 overflow-x-hidden">
+        <div className="border-b border-slate-700 bg-slate-800">
+          <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="icon"
+                className="border-slate-600 text-slate-300 hover:bg-slate-700 lg:hidden"
+                onClick={() => setMobileSidebarOpen(true)}
+              >
+                <Menu size={16} />
+              </Button>
+              <h1 className="text-base sm:text-lg font-semibold text-white">My Rent Tracker</h1>
+            </div>
           </div>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6">{children}</div>
       </main>
     </div>
   )

@@ -25,9 +25,7 @@ export async function createUnit(
   propertyId: string,
   name: string,
   trackUtilities: boolean,
-  contractAddress: string,
-  rentAmount: number,
-  cashBondAmount: number
+  rentAmount: number
 ): Promise<Unit> {
   // First check if adding this unit would exceed no_units limit
   const { data: property, error: propError } = await supabase
@@ -55,9 +53,7 @@ export async function createUnit(
       rental_property_id: propertyId,
       name,
       track_utilities: trackUtilities,
-      contract_address: contractAddress,
       rent_amount: rentAmount,
-      cash_bond_amount: cashBondAmount,
     })
     .select()
     .single()

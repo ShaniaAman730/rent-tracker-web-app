@@ -34,7 +34,6 @@ export default function UnitsPage() {
       const unitsData = await getUnitsByProperty(propertyId)
       setUnits(unitsData)
 
-      // Load tenants for each unit
       const tenants = new Map()
       for (const unit of unitsData) {
         const tenant = await getTenantByUnit(unit.id)
@@ -82,15 +81,12 @@ export default function UnitsPage() {
         <p className="text-slate-400">{property.address}</p>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-2xl font-semibold text-white">
           Units ({units.length}/{property.no_units})
         </h2>
         {units.length < property.no_units && (
-          <Button
-            onClick={() => setFormOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
+          <Button onClick={() => setFormOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
             <Plus size={16} className="mr-2" />
             Add Unit
           </Button>
@@ -100,10 +96,7 @@ export default function UnitsPage() {
       {units.length === 0 ? (
         <Card className="p-8 text-center border-slate-700 bg-slate-800">
           <p className="text-slate-400 mb-4">No units added yet</p>
-          <Button
-            onClick={() => setFormOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
+          <Button onClick={() => setFormOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white">
             <Plus size={16} className="mr-2" />
             Add Your First Unit
           </Button>
@@ -114,21 +107,13 @@ export default function UnitsPage() {
             const tenant = tenantMap.get(unit.id)
             return (
               <Card key={unit.id} className="p-6 border-slate-700 bg-slate-800">
-                <div className="flex items-start justify-between">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-white mb-3">{unit.name}</h3>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-slate-400">Contract Address</p>
-                        <p className="text-white">{unit.contract_address}</p>
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-slate-400">Monthly Rent</p>
-                        <p className="text-white font-medium">₱{unit.rent_amount.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-slate-400">Cash Bond</p>
-                        <p className="text-white">₱{unit.cash_bond_amount.toLocaleString()}</p>
+                        <p className="text-white font-medium">PHP {Number(unit.rent_amount).toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-slate-400">Track Utilities</p>
@@ -137,9 +122,7 @@ export default function UnitsPage() {
                       <div>
                         <p className="text-slate-400">Tenant</p>
                         <p className="text-white">
-                          {tenant
-                            ? `${tenant.first_name} ${tenant.last_name}`
-                            : 'No tenant assigned'}
+                          {tenant ? `${tenant.first_name} ${tenant.last_name}` : 'No tenant assigned'}
                         </p>
                       </div>
                     </div>

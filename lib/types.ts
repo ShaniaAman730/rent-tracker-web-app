@@ -20,9 +20,7 @@ export type Unit = {
   name: string
   track_utilities: boolean
   paired_unit_id: string | null
-  contract_address: string
   rent_amount: number
-  cash_bond_amount: number
   created_at: string
 }
 
@@ -38,23 +36,32 @@ export type Tenant = {
   unit_id: string
   first_name: string
   last_name: string
-  contract_name: string
   contact_no: string
   messenger: string
-  address: string
-  begin_contract: string
-  end_contract: string
   created_at: string
 }
 
 export type Contract = {
   id: string
   unit_id: string
+  tenant_id: string
   year: number
+  first_name: string
+  middle_name: string
+  last_name: string
+  citizenship: string
+  marital_status: string
+  tenant_address: string
+  unit_specification: string
+  property_specification: string
+  rent: number
+  cash_bond: number
+  begin_contract: string
+  end_contract: string
   signed: boolean
-  notarized: boolean
-  signed_recorded_by: string | null
-  notarized_recorded_by: string | null
+  recorded_by_user_id: string | null
+  recorded_date: string | null
+  comments: string | null
   created_at: string
 }
 
@@ -66,12 +73,14 @@ export type RentPayment = {
   paid: boolean
   recorded_by_user_id: string
   recorded_date: string
+  comments: string | null
   created_at: string
 }
 
 export type Utility = {
   id: string
-  unit_id: string
+  pairing_id: string | null
+  unit_id?: string | null
   type: 'MNWD' | 'Casureco'
   due_date: string
   date_of_reading: string
@@ -88,6 +97,7 @@ export type UtilityPayment = {
   paid: boolean
   recorded_by_user_id: string
   recorded_date: string
+  comments: string | null
   created_at: string
 }
 

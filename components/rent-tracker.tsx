@@ -37,7 +37,6 @@ export function RentTracker() {
       const props = await getPropertiesWithUnits()
       setProperties(props)
 
-      // Load rent payments for current month
       const year = currentDate.getFullYear()
       const month = currentDate.getMonth() + 1
 
@@ -105,9 +104,9 @@ export function RentTracker() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-white">Monthly Rent Tracker</h1>
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">Monthly Rent Tracker</h1>
+        <div className="flex items-center gap-2 sm:gap-4">
           <Button
             onClick={previousMonth}
             variant="outline"
@@ -116,7 +115,7 @@ export function RentTracker() {
           >
             <ChevronLeft size={16} />
           </Button>
-          <span className="text-lg font-semibold text-white min-w-40 text-center">{monthName}</span>
+          <span className="text-base sm:text-lg font-semibold text-white min-w-40 text-center">{monthName}</span>
           <Button
             onClick={nextMonth}
             variant="outline"
@@ -135,7 +134,7 @@ export function RentTracker() {
       ) : (
         <div className="space-y-6">
           {properties.map((property) => (
-            <Card key={property.id} className="p-6 border-slate-700 bg-slate-800">
+            <Card key={property.id} className="p-4 sm:p-6 border-slate-700 bg-slate-800">
               <h2 className="text-xl font-semibold text-white mb-4">{property.name}</h2>
               <div className="space-y-4">
                 {property.units.map((unit: any) => {
@@ -144,47 +143,55 @@ export function RentTracker() {
                   return (
                     <div
                       key={unit.id}
-                      className="p-4 bg-slate-700 rounded-lg border border-slate-600 space-y-2"
+                      className="p-4 bg-slate-700 rounded-lg border border-slate-600 space-y-3"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+                        <div>
                           <p className="text-sm text-slate-400">Unit</p>
                           <p className="text-lg font-semibold text-white">{unit.name}</p>
                         </div>
-                        <div className="flex-1">
+                        <div>
                           <p className="text-sm text-slate-400">Tenant</p>
                           <p className="text-white font-medium">
-                            {tenant
-                              ? `${tenant.first_name} ${tenant.last_name}`
-                              : 'No tenant assigned'}
+                            {tenant ? `${tenant.first_name} ${tenant.last_name}` : 'No tenant assigned'}
                           </p>
                         </div>
-                        <div className="flex-1">
+                        <div>
                           <p className="text-sm text-slate-400">Rent Amount</p>
-                          <p className="text-white font-medium">₱{unit.rent_amount.toLocaleString()}</p>
+                          <p className="text-white font-medium">PHP {Number(unit.rent_amount).toLocaleString()}</p>
                         </div>
-                        <div className="flex-1">
+                        <div>
                           <p className="text-sm text-slate-400">Status</p>
                           <div className="flex items-center gap-2">
                             <div
-                              className={`w-3 h-3 rounded-full ${
-                                payment?.paid ? 'bg-green-500' : 'bg-red-500'
-                              }`}
+                              className={`w-3 h-3 rounded-full ${payment?.paid ? 'bg-green-500' : 'bg-red-500'}`}
                             />
-                            <span className="text-white font-medium">
-                              {payment?.paid ? 'Paid' : 'Not Paid'}
-                            </span>
+                            <span className="text-white font-medium">{payment?.paid ? 'Paid' : 'Not Paid'}</span>
                           </div>
                         </div>
-                        {payment && (
-                          <div className="flex-1">
-                            <p className="text-sm text-slate-400">Recorded By</p>
-                            <p className="text-white text-sm">
-                              {recordedByNames.get(payment.recorded_by_user_id) || payment.recorded_by_user_id}
-                            </p>
-                          </div>
-                        )}
+                        <div>
+                          <p className="text-sm text-slate-400">Recorded By</p>
+                          <p className="text-white text-sm">
+                            {payment
+                              ? recordedByNames.get(payment.recorded_by_user_id) || payment.recorded_by_user_id
+                              : '-'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-400">Recorded Date/Time</p>
+                          <p className="text-white text-sm">
+                            {payment?.recorded_date
+                              ? new Date(payment.recorded_date).toLocaleString()
+                              : '-'}
+                          </p>
+                        </div>
                       </div>
+
+                      <div>
+                        <p className="text-sm text-slate-400">Comments</p>
+                        <p className="text-sm text-white">{payment?.comments || '-'}</p>
+                      </div>
+
                       <div className="mt-2 flex gap-2">
                         <Button
                           onClick={() => setSelectedPayment({ unitId: unit.id, year, month })}

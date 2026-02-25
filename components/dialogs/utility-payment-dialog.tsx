@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Textarea } from '@/components/ui/textarea'
 
 interface UtilityPaymentDialogProps {
   utility: Utility & { payment?: any }
@@ -29,6 +30,7 @@ export function UtilityPaymentDialog({
   onPaymentRecorded,
 }: UtilityPaymentDialogProps) {
   const [paid, setPaid] = useState<string>(utility.payment?.paid ? 'true' : 'false')
+  const [comments, setComments] = useState(utility.payment?.comments || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,7 +39,7 @@ export function UtilityPaymentDialog({
       setLoading(true)
       setError(null)
 
-      await recordUtilityPayment(utility.id, paid === 'true', currentUser.id)
+      await recordUtilityPayment(utility.id, paid === 'true', currentUser.id, comments.trim() || null)
 
       onPaymentRecorded()
     } catch (err) {
@@ -68,7 +70,7 @@ export function UtilityPaymentDialog({
             </p>
             <p>
               <span className="text-slate-400">Amount:</span>{' '}
-              <span className="text-white font-medium">₱{utility.amount.toLocaleString()}</span>
+              <span className="text-white font-medium">PHP {utility.amount.toLocaleString()}</span>
             </p>
           </div>
 
@@ -88,6 +90,20 @@ export function UtilityPaymentDialog({
                 </Label>
               </div>
             </RadioGroup>
+          </div>
+
+          <div>
+            <Label htmlFor="utility_comments" className="text-slate-200">
+              Comments
+            </Label>
+            <Textarea
+              id="utility_comments"
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+              className="mt-1 bg-slate-700 border-slate-600 text-white"
+              placeholder="Optional notes"
+              rows={3}
+            />
           </div>
 
           <div className="bg-slate-700 p-3 rounded text-sm text-slate-300">

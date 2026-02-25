@@ -29,12 +29,8 @@ export async function createTenant(
   unitId: string,
   firstName: string,
   lastName: string,
-  contractName: string,
   contactNo: string,
-  messenger: string,
-  address: string,
-  beginContract: string,
-  endContract: string
+  messenger: string
 ): Promise<Tenant> {
   const { data, error } = await supabase
     .from('tenant')
@@ -42,12 +38,8 @@ export async function createTenant(
       unit_id: unitId,
       first_name: firstName,
       last_name: lastName,
-      contract_name: contractName,
       contact_no: contactNo,
       messenger,
-      address,
-      begin_contract: beginContract,
-      end_contract: endContract,
     })
     .select()
     .single()
@@ -103,21 +95,46 @@ export async function getContractByUnitAndYear(
 
 export async function createContract(
   unitId: string,
+  tenantId: string,
   year: number,
+  firstName: string,
+  middleName: string,
+  lastName: string,
+  citizenship: string,
+  maritalStatus: string,
+  tenantAddress: string,
+  unitSpecification: string,
+  propertySpecification: string,
+  rent: number,
+  cashBond: number,
+  beginContract: string,
+  endContract: string,
   signed: boolean,
-  notarized: boolean,
-  signedRecordedBy?: string,
-  notarizedRecordedBy?: string
+  recordedByUserId: string,
+  comments: string | null
 ): Promise<Contract> {
   const { data, error } = await supabase
     .from('contract')
     .insert({
       unit_id: unitId,
+      tenant_id: tenantId,
       year,
+      first_name: firstName,
+      middle_name: middleName,
+      last_name: lastName,
+      citizenship,
+      marital_status: maritalStatus,
+      tenant_address: tenantAddress,
+      unit_specification: unitSpecification,
+      property_specification: propertySpecification,
+      rent,
+      cash_bond: cashBond,
+      begin_contract: beginContract,
+      end_contract: endContract,
       signed,
-      notarized,
-      signed_recorded_by: signedRecordedBy || null,
-      notarized_recorded_by: notarizedRecordedBy || null,
+      recorded_by_user_id: recordedByUserId,
+      recorded_date: new Date().toISOString(),
+      comments,
     })
     .select()
     .single()
@@ -129,7 +146,10 @@ export async function createContract(
 export async function updateContract(id: string, updates: Partial<Contract>): Promise<Contract> {
   const { data, error } = await supabase
     .from('contract')
-    .update(updates)
+    .update({
+      ...updates,
+      recorded_date: new Date().toISOString(),
+    })
     .eq('id', id)
     .select()
     .single()
@@ -142,4 +162,15 @@ export async function deleteContract(id: string): Promise<void> {
   const { error } = await supabase.from('contract').delete().eq('id', id)
 
   if (error) throw error
+}
+
+export async function getContractsByYear(year: number): Promise<Contract[]> {
+  const { data, error } = await supabase
+    .from('contract')
+    .select('*')
+    .eq('year', year)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data || []
 }
