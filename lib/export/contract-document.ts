@@ -1,7 +1,17 @@
 import { AlignmentType, Document, Packer, Paragraph, TextRun } from 'docx'
 
 export interface ContractData {
-  lessorName: string
+  landlordFirstName: string
+  landlordMiddleName: string
+  landlordLastName: string
+  landlordNamePrefix: string
+  landlordCitizenship: string
+  landlordMaritalStatus: string
+  landlordPostalAddress: string
+  landlordGovIdType: string
+  landlordGovIdNo: string
+  landlordIdIssuedDate: string
+  landlordIdExpiryDate: string
   propertyAddress: string
   year: number
   firstName: string
@@ -16,14 +26,48 @@ export interface ContractData {
   cashBond: number
   beginContract: string
   endContract: string
+  tenantGovIdType: string
+  tenantGovIdNo: string
+  tenantIdIssuedDate: string
+  tenantIdExpiryDate: string
 }
 
 function formatLongDate(value: string) {
+  if (!value) return ''
   return new Date(value).toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+function toUpperFullName(firstName: string, middleName: string, lastName: string) {
+  return `${firstName} ${middleName} ${lastName}`.toUpperCase().replace(/\s+/g, ' ').trim()
+}
+
+function toUpperInitialName(firstName: string, middleName: string, lastName: string) {
+  const middleInitial = middleName ? `${middleName[0].toUpperCase()}.` : ''
+  return `${firstName.toUpperCase()} ${middleInitial} ${lastName.toUpperCase()}`.replace(/\s+/g, ' ').trim()
+}
+
+function pageCountText(blockCount: number): string {
+  const estimated = Math.max(1, Math.round(blockCount / 17))
+  const words = [
+    'one',
+    'two',
+    'three',
+    'four',
+    'five',
+    'six',
+    'seven',
+    'eight',
+    'nine',
+    'ten',
+    'eleven',
+    'twelve',
+  ]
+  const spelled = words[estimated - 1] || String(estimated)
+  return `${spelled} (${estimated}) pages`
 }
 
 function formatCurrency(value: number) {
@@ -101,14 +145,19 @@ type Block = {
 }
 
 function getContractBlocks(data: ContractData): Block[] {
+  const lessorUpper = toUpperFullName(
+    data.landlordFirstName,
+    data.landlordMiddleName,
+    data.landlordLastName
+  )
+  const lessorInitialName = toUpperInitialName(
+    data.landlordFirstName,
+    data.landlordMiddleName,
+    data.landlordLastName
+  )
   const tenantUpper = `${data.firstName} ${data.middleName} ${data.lastName}`.toUpperCase().replace(/\s+/g, ' ').trim()
-  const middleInitial = data.middleName ? `${data.middleName[0].toUpperCase()}.` : ''
-  const tenantSignatureName = `MR. ${data.firstName.toUpperCase()} ${middleInitial} ${data.lastName.toUpperCase()}`
-    .replace(/\s+/g, ' ')
-    .trim()
-  const tenantAcknowledgeName = `${data.firstName.toUpperCase()} ${middleInitial} ${data.lastName.toUpperCase()}`
-    .replace(/\s+/g, ' ')
-    .trim()
+  const tenantSignatureName = `MR. ${toUpperInitialName(data.firstName, data.middleName, data.lastName)}`
+  const tenantAcknowledgeName = toUpperInitialName(data.firstName, data.middleName, data.lastName)
   const rentText = `${toWords(data.rent)} PESOS (${formatCurrency(data.rent)})`
   const cashBondText = `${toWords(data.cashBond)} PESOS (${formatCurrency(data.cashBond)})`
   const clauses: Block[] = [
@@ -282,11 +331,11 @@ function getContractBlocks(data: ContractData): Block[] {
     },
   ]
 
-  return [
+  const blocks: Block[] = [
     { text: 'CONTRACT OF LEASE', align: 'center', bold: true },
     { text: '' },
     {
-      text: `This CONTRACT OF LEASE made and executed by and between: The LESSOR: ${data.lessorName}, of legal age, Filipino, single, resident and with postal address at 65 Sacred Heart St., Zone 1, San Felipe, Naga City, Philippines.`,
+      text: `This CONTRACT OF LEASE made and executed by and between: The LESSOR: ${lessorUpper}, of legal age, ${data.landlordCitizenship}, ${data.landlordMaritalStatus}, resident and with postal address at ${data.landlordPostalAddress}.`,
       align: 'justify',
       indentFirstLine: 720,
     },
@@ -315,7 +364,10 @@ function getContractBlocks(data: ContractData): Block[] {
       indentFirstLine: 720,
     },
     { text: '' },
-    { text: ` ENGR. ${data.lessorName}                              ${tenantSignatureName}` },
+    {
+      text: `${(data.landlordNamePrefix || '').toUpperCase()} ${lessorInitialName}                              ${tenantSignatureName}`
+        .trim(),
+    },
     { text: '                LESSOR                                                                         LESSEE' },
     { text: '' },
     { text: 'SIGNED IN THE PRESENCE OF:' },
@@ -335,7 +387,7 @@ function getContractBlocks(data: ContractData): Block[] {
     },
     { text: '' },
     {
-      text: `${data.lessorName.toUpperCase()} with PRC No. 0066992  issued on July 12, 1993 and Expiry date on October 24, 2028 and ${tenantAcknowledgeName} with Driver's License No. D04-18-010458 with expiry date on August 21, 2032 known to me be the same persons who executed the foregoing instrument containing of five (5) pages, and including this page, duly signed by the parties at the left hand margin on each & every page thereof, they all acknowledge to me that the same is their own free and voluntary act indeed.`,
+      text: `${lessorInitialName} with ${data.landlordGovIdType} No. ${data.landlordGovIdNo} issued on ${formatLongDate(data.landlordIdIssuedDate)} and Expiry date on ${formatLongDate(data.landlordIdExpiryDate)} and ${tenantAcknowledgeName} with ${data.tenantGovIdType} No. ${data.tenantGovIdNo} issued on ${formatLongDate(data.tenantIdIssuedDate)} with expiry date on ${formatLongDate(data.tenantIdExpiryDate)} known to me be the same persons who executed the foregoing instrument containing of __PAGE_COUNT__, and including this page, duly signed by the parties at the left hand margin on each & every page thereof, they all acknowledge to me that the same is their own free and voluntary act indeed.`,
       align: 'justify',
     },
     { text: '' },
@@ -355,6 +407,12 @@ function getContractBlocks(data: ContractData): Block[] {
     { text: 'Page No. ____________' },
     { text: 'Series No. ___________      ' },
   ]
+
+  const totalPagesText = pageCountText(blocks.length)
+  return blocks.map((block) => ({
+    ...block,
+    text: block.text.replace('__PAGE_COUNT__', totalPagesText),
+  }))
 }
 
 export async function generateContractDocument(contractData: ContractData): Promise<Blob> {

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { getPropertiesWithUnits } from '@/lib/api/properties'
+import { getAllLandlords } from '@/lib/api/landlords'
 import {
   createContract,
   deleteContract,
@@ -35,11 +36,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react'
 
 const START_YEAR = 2026
-const LESSOR_NAME = 'ARMANDO L. AMAN'
 
 type ContractFormState = {
   unitId: string
   tenantId: string
+  landlordId: string
   year: string
   firstName: string
   middleName: string
@@ -59,6 +60,7 @@ type ContractFormState = {
 const emptyForm: ContractFormState = {
   unitId: '',
   tenantId: '',
+  landlordId: '',
   year: String(START_YEAR),
   firstName: '',
   middleName: '',
@@ -78,6 +80,7 @@ const emptyForm: ContractFormState = {
 export default function ContractMonitoringPage() {
   const [properties, setProperties] = useState<any[]>([])
   const [tenants, setTenants] = useState<any[]>([])
+  const [landlords, setLandlords] = useState<any[]>([])
   const [contracts, setContracts] = useState<any[]>([])
   const [recordedByNames, setRecordedByNames] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
@@ -104,15 +107,17 @@ export default function ContractMonitoringPage() {
   async function loadData() {
     try {
       setLoading(true)
-      const [user, props, allTenants, yearlyContracts] = await Promise.all([
+      const [user, props, allTenants, allLandlords, yearlyContracts] = await Promise.all([
         getCurrentUser(),
         getPropertiesWithUnits(),
         getAllTenants(),
+        getAllLandlords(),
         getContractsByYear(currentYear),
       ])
       setCurrentUser(user)
       setProperties(props)
       setTenants(allTenants)
+      setLandlords(allLandlords)
       setContracts(yearlyContracts)
 
       const userIds = yearlyContracts.map((contract: any) => contract.recorded_by_user_id).filter(Boolean)
@@ -149,6 +154,7 @@ export default function ContractMonitoringPage() {
       ...emptyForm,
       unitId: unit.id,
       tenantId: defaultTenant?.id || '',
+      landlordId: landlords[0]?.id || '',
       year: String(currentYear),
       firstName: defaultTenant?.first_name || '',
       lastName: defaultTenant?.last_name || '',
@@ -163,6 +169,7 @@ export default function ContractMonitoringPage() {
     setContractForm({
       unitId: contract.unit_id,
       tenantId: contract.tenant_id,
+      landlordId: contract.landlord_id || '',
       year: String(contract.year),
       firstName: contract.first_name,
       middleName: contract.middle_name,
@@ -197,6 +204,7 @@ export default function ContractMonitoringPage() {
     const required = [
       contractForm.unitId,
       contractForm.tenantId,
+      contractForm.landlordId,
       contractForm.year,
       contractForm.firstName,
       contractForm.middleName,
@@ -229,6 +237,7 @@ export default function ContractMonitoringPage() {
       if (editingContractId) {
         await updateContract(editingContractId, {
           tenant_id: contractForm.tenantId,
+          landlord_id: contractForm.landlordId,
           year: Number(contractForm.year),
           first_name: contractForm.firstName.trim(),
           middle_name: contractForm.middleName.trim(),
@@ -249,6 +258,7 @@ export default function ContractMonitoringPage() {
         await createContract(
           contractForm.unitId,
           contractForm.tenantId,
+          contractForm.landlordId,
           Number(contractForm.year),
           contractForm.firstName.trim(),
           contractForm.middleName.trim(),
@@ -338,8 +348,25 @@ export default function ContractMonitoringPage() {
   async function handleExport(contract: any, property: any, unit: any) {
     try {
       setExportingId(contract.id)
+      const landlord = landlords.find((item) => item.id === contract.landlord_id)
+      const tenant = tenants.find((item) => item.id === contract.tenant_id)
+      if (!landlord) {
+        alert('Landlord record is missing for this contract.')
+        return
+      }
+
       const payload = {
-        lessorName: LESSOR_NAME,
+        landlordFirstName: landlord.first_name,
+        landlordMiddleName: landlord.middle_name,
+        landlordLastName: landlord.last_name,
+        landlordNamePrefix: landlord.name_prefix || '',
+        landlordCitizenship: landlord.citizenship,
+        landlordMaritalStatus: landlord.marital_status,
+        landlordPostalAddress: landlord.postal_address,
+        landlordGovIdType: landlord.gov_id_type,
+        landlordGovIdNo: landlord.gov_id_no,
+        landlordIdIssuedDate: landlord.id_issued_date,
+        landlordIdExpiryDate: landlord.id_expiry_date,
         propertyAddress: `${unit.name}, ${property.address}`,
         year: contract.year,
         firstName: contract.first_name,
@@ -354,6 +381,10 @@ export default function ContractMonitoringPage() {
         cashBond: Number(contract.cash_bond),
         beginContract: contract.begin_contract,
         endContract: contract.end_contract,
+        tenantGovIdType: tenant?.gov_id_type || '',
+        tenantGovIdNo: tenant?.gov_id_no || '',
+        tenantIdIssuedDate: tenant?.id_issued_date || '',
+        tenantIdExpiryDate: tenant?.id_expiry_date || '',
       }
 
       const fileBase = `${unit.name}-contract-${contract.year}`.replace(/\s+/g, '-')
@@ -446,6 +477,17 @@ export default function ContractMonitoringPage() {
                               <p className="text-slate-400">Tenant</p>
                               <p className="text-white">
                                 {contract.first_name} {contract.middle_name} {contract.last_name}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-slate-400">Landlord</p>
+                              <p className="text-white">
+                                {(() => {
+                                  const landlord = landlords.find((item) => item.id === contract.landlord_id)
+                                  return landlord
+                                    ? `${landlord.first_name} ${landlord.middle_name} ${landlord.last_name}`
+                                    : '-'
+                                })()}
                               </p>
                             </div>
                             <div>
@@ -576,6 +618,26 @@ export default function ContractMonitoringPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div>
+              <Label className="text-slate-200">Landlord</Label>
+              <Select
+                value={contractForm.landlordId}
+                onValueChange={(value) => setContractForm((prev) => ({ ...prev, landlordId: value }))}
+              >
+                <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
+                  <SelectValue placeholder="Select landlord" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-700 border-slate-600">
+                  {landlords.map((landlord) => (
+                    <SelectItem key={landlord.id} value={landlord.id} className="text-white">
+                      {landlord.name_prefix ? `${landlord.name_prefix} ` : ''}
+                      {landlord.first_name} {landlord.middle_name} {landlord.last_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

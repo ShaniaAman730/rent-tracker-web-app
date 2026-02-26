@@ -11,6 +11,7 @@ import {
   Zap,
   Calculator,
   FileText,
+  UserRound,
   LogOut,
   UserCog,
   ChevronLeft,
@@ -52,6 +53,7 @@ export function Sidebar({
     { label: 'Properties', icon: Building2, path: '/dashboard/properties' },
     { label: 'Tenants', icon: Users, path: '/dashboard/tenants' },
     { label: 'Contracts', icon: FileText, path: '/dashboard/contract-monitoring' },
+    { label: 'Landlords', icon: UserRound, path: '/dashboard/landlords' },
     { label: 'Account', icon: UserCog, path: '/dashboard/account' },
   ]
 

@@ -30,7 +30,11 @@ export async function createTenant(
   firstName: string,
   lastName: string,
   contactNo: string,
-  messenger: string
+  messenger: string,
+  govIdType: string | null,
+  govIdNo: string | null,
+  idIssuedDate: string | null,
+  idExpiryDate: string | null
 ): Promise<Tenant> {
   const { data, error } = await supabase
     .from('tenant')
@@ -40,6 +44,10 @@ export async function createTenant(
       last_name: lastName,
       contact_no: contactNo,
       messenger,
+      gov_id_type: govIdType,
+      gov_id_no: govIdNo,
+      id_issued_date: idIssuedDate,
+      id_expiry_date: idExpiryDate,
     })
     .select()
     .single()
@@ -96,6 +104,7 @@ export async function getContractByUnitAndYear(
 export async function createContract(
   unitId: string,
   tenantId: string,
+  landlordId: string,
   year: number,
   firstName: string,
   middleName: string,
@@ -118,6 +127,7 @@ export async function createContract(
     .insert({
       unit_id: unitId,
       tenant_id: tenantId,
+      landlord_id: landlordId,
       year,
       first_name: firstName,
       middle_name: middleName,

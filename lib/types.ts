@@ -38,6 +38,26 @@ export type Tenant = {
   last_name: string
   contact_no: string
   messenger: string
+  gov_id_type: string | null
+  gov_id_no: string | null
+  id_issued_date: string | null
+  id_expiry_date: string | null
+  created_at: string
+}
+
+export type Landlord = {
+  id: string
+  first_name: string
+  middle_name: string
+  last_name: string
+  name_prefix: string | null
+  citizenship: string
+  marital_status: string
+  postal_address: string
+  gov_id_type: string
+  gov_id_no: string
+  id_issued_date: string
+  id_expiry_date: string
   created_at: string
 }
 
@@ -45,6 +65,7 @@ export type Contract = {
   id: string
   unit_id: string
   tenant_id: string
+  landlord_id: string
   year: number
   first_name: string
   middle_name: string

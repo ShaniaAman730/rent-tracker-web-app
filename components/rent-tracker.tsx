@@ -194,7 +194,9 @@ export function RentTracker() {
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
                         <div>
                           <p className="text-sm text-slate-400">Unit</p>
-                          <p className="text-lg font-semibold text-white">{unit.name}</p>
+                          <p className="text-lg font-semibold text-white">
+                            {property.code} {unit.name}
+                          </p>
                         </div>
                         <div>
                           <p className="text-sm text-slate-400">Tenant</p>

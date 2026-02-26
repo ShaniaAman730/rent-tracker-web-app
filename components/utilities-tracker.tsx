@@ -91,7 +91,7 @@ export function UtilitiesTracker() {
     const map = new Map<string, any>()
     for (const property of properties) {
       for (const unit of property.units || []) {
-        map.set(unit.id, { ...unit, propertyName: property.name })
+        map.set(unit.id, { ...unit, propertyName: property.name, propertyCode: property.code })
       }
     }
     return map
@@ -215,7 +215,7 @@ export function UtilitiesTracker() {
           {pairRows.map(({ pairing, firstUnit, secondUnit, utilities }) => (
             <Card key={pairing.id} className="p-4 sm:p-6 border-slate-700 bg-slate-800">
               <h2 className="text-xl font-semibold text-white mb-1">
-                Pair: {firstUnit.name} (First Floor) + {secondUnit.name} (Second Floor)
+                Pair: {firstUnit.propertyCode} {firstUnit.name} (First Floor) + {secondUnit.propertyCode} {secondUnit.name} (Second Floor)
               </h2>
               <p className="text-sm text-slate-400 mb-4">{firstUnit.propertyName}</p>
               <div className="space-y-3">

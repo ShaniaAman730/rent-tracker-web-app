@@ -39,18 +39,44 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Spinner } from '@/components/ui/spinner'
 
 type UtilityType = 'MNWD' | 'Casureco'
 type ExportType = 'word' | 'pdf' | 'png' | 'excel'
 
+const MONTH_OPTIONS = [
+  { value: 0, label: 'January' },
+  { value: 1, label: 'February' },
+  { value: 2, label: 'March' },
+  { value: 3, label: 'April' },
+  { value: 4, label: 'May' },
+  { value: 5, label: 'June' },
+  { value: 6, label: 'July' },
+  { value: 7, label: 'August' },
+  { value: 8, label: 'September' },
+  { value: 9, label: 'October' },
+  { value: 10, label: 'November' },
+  { value: 11, label: 'December' },
+]
+
 function formatMoney(value: number) {
   return `PHP ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function getPairLabel(first: any, second: any) {
+  if (!first || !second) return ''
+  if (first.propertyCode === second.propertyCode) {
+    return `${first.propertyCode} ${first.name} (First Floor) + ${second.name} (Second Floor)`
+  }
+  return `${first.propertyCode} ${first.name} (First Floor) + ${second.propertyCode} ${second.name} (Second Floor)`
 }
 
 export default function ComputeUtilitiesPage() {
   const [properties, setProperties] = useState<any[]>([])
   const [pairings, setPairings] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [pairUtilitiesLoading, setPairUtilitiesLoading] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [recordedByNames, setRecordedByNames] = useState<Map<string, string>>(new Map())
 
@@ -69,6 +95,8 @@ export default function ComputeUtilitiesPage() {
   const [editingUtility, setEditingUtility] = useState<any>(null)
   const [exportType, setExportType] = useState<ExportType>('word')
   const [exportUtilityType, setExportUtilityType] = useState<UtilityType>('MNWD')
+  const [selectedExportMonth, setSelectedExportMonth] = useState<number>(new Date().getMonth())
+  const [selectedExportYear, setSelectedExportYear] = useState<number>(new Date().getFullYear())
   const [selectedExportUtilityId, setSelectedExportUtilityId] = useState<string>('')
   const [viewingComputation, setViewingComputation] = useState<any>(null)
   const [exporting, setExporting] = useState(false)
@@ -78,8 +106,8 @@ export default function ComputeUtilitiesPage() {
   }, [])
 
   useEffect(() => {
-    if (!selectedPairing) return
-    loadUtilitiesForSelectedPairing()
+    if (!selectedPairingId) return
+    loadUtilitiesForSelectedPairing(selectedPairingId)
   }, [selectedPairingId])
 
   async function loadData() {
@@ -131,7 +159,9 @@ export default function ComputeUtilitiesPage() {
           .filter((unit: any) => unit.track_utilities)
           .map((unit: any) => ({
             ...unit,
-            label: `${property.name} - ${unit.name}`,
+            propertyCode: property.code,
+            propertyName: property.name,
+            label: `${property.code} - ${unit.name}`,
           }))
       ),
     [properties]
@@ -157,13 +187,14 @@ export default function ComputeUtilitiesPage() {
 
   const selectedPairLabel = useMemo(() => {
     if (selectedPairUnits.length !== 2) return ''
-    return `${selectedPairUnits[0].name} (First Floor) + ${selectedPairUnits[1].name} (Second Floor)`
+    return getPairLabel(selectedPairUnits[0], selectedPairUnits[1])
   }, [selectedPairUnits])
 
-  async function loadUtilitiesForSelectedPairing() {
-    if (!selectedPairing) return
+  async function loadUtilitiesForSelectedPairing(pairingId: string) {
+    if (!pairingId) return
     try {
-      const utilities = await getUtilitiesWithPaymentsForPairings([selectedPairing.id])
+      setPairUtilitiesLoading(true)
+      const utilities = await getUtilitiesWithPaymentsForPairings([pairingId])
 
       const sortedByTypeAndDate = (type: UtilityType) =>
         utilities
@@ -184,6 +215,8 @@ export default function ComputeUtilitiesPage() {
       setRecordedByNames(await getUsersMapByIds(userIds))
     } catch (error) {
       console.error('Error loading paired utilities:', error)
+    } finally {
+      setPairUtilitiesLoading(false)
     }
   }
 
@@ -201,7 +234,17 @@ export default function ComputeUtilitiesPage() {
 
   const exportableUtilities = useMemo(() => {
     const grouped = new Map<string, any[]>()
-    for (const utility of allUtilities.filter((item) => item.type === exportUtilityType)) {
+    const filteredByMonthYear = allUtilities
+      .filter((item) => item.type === exportUtilityType)
+      .filter((item) => {
+        const readingDate = new Date(item.date_of_reading)
+        return (
+          readingDate.getMonth() === selectedExportMonth &&
+          readingDate.getFullYear() === selectedExportYear
+        )
+      })
+
+    for (const utility of filteredByMonthYear) {
       const key = `${utility.pairing_id}-${utility.type}`
       if (!grouped.has(key)) {
         grouped.set(key, [])
@@ -228,7 +271,7 @@ export default function ComputeUtilitiesPage() {
       (a, b) =>
         new Date(b.utility.date_of_reading).getTime() - new Date(a.utility.date_of_reading).getTime()
     )
-  }, [allUtilities, exportUtilityType])
+  }, [allUtilities, exportUtilityType, selectedExportMonth, selectedExportYear])
 
   useEffect(() => {
     if (exportableUtilities.length === 0) {
@@ -281,7 +324,9 @@ export default function ComputeUtilitiesPage() {
     if (!confirm('Delete this utility record?')) return
     try {
       await deleteUtility(utilityId)
-      await loadUtilitiesForSelectedPairing()
+      if (selectedPairingId) {
+        await loadUtilitiesForSelectedPairing(selectedPairingId)
+      }
       await loadAllUtilities(pairings)
     } catch (error) {
       console.error('Error deleting utility record:', error)
@@ -307,7 +352,7 @@ export default function ComputeUtilitiesPage() {
     const secondUnit = selectedPair ? unitsById.get(selectedPair.second_unit_id) : null
     const pairLabel =
       firstUnit && secondUnit
-        ? `${firstUnit.name} (First Floor) + ${secondUnit.name} (Second Floor)`
+        ? getPairLabel(firstUnit, secondUnit)
         : selectedPairLabel
 
     const billingData = calculateBillingData(
@@ -367,7 +412,9 @@ export default function ComputeUtilitiesPage() {
     }
     setEditingUtility(null)
     setFormOpen(false)
-    await loadUtilitiesForSelectedPairing()
+    if (selectedPairingId) {
+      await loadUtilitiesForSelectedPairing(selectedPairingId)
+    }
     await loadAllUtilities(pairings)
   }
 
@@ -393,7 +440,12 @@ export default function ComputeUtilitiesPage() {
           </Button>
         </div>
 
-        {rows.length === 0 ? (
+        {pairUtilitiesLoading ? (
+          <div className="flex items-center gap-2 text-slate-300">
+            <Spinner className="size-4" />
+            Loading readings...
+          </div>
+        ) : rows.length === 0 ? (
           <p className="text-slate-400">No records found</p>
         ) : (
           <div className="overflow-x-auto">
@@ -501,7 +553,7 @@ export default function ComputeUtilitiesPage() {
       if (!first || !second) return null
       return {
         id: pairing.id,
-        label: `${first.label} + ${second.label}`,
+        label: getPairLabel(first, second),
       }
     })
     .filter(Boolean) as { id: string; label: string }[]
@@ -511,7 +563,7 @@ export default function ComputeUtilitiesPage() {
     const first = pair ? unitsById.get(pair.first_unit_id) : null
     const second = pair ? unitsById.get(pair.second_unit_id) : null
     const pairLabel =
-      first && second ? `${first.name} + ${second.name}` : `Pair ${entry.utility.pairing_id || ''}`
+      first && second ? getPairLabel(first, second) : `Pair ${entry.utility.pairing_id || ''}`
 
     return {
       value: entry.utility.id,
@@ -616,7 +668,7 @@ export default function ComputeUtilitiesPage() {
           {renderTrackerTable('Casureco Tracker', casurecoUtilities, showAllCasureco, setShowAllCasureco)}
 
           <Card className="p-6 border-slate-700 bg-slate-800">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
               <div>
                 <Label className="text-slate-200">Utility Type</Label>
                 <Select
@@ -635,6 +687,32 @@ export default function ComputeUtilitiesPage() {
                     </SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div>
+                <Label className="text-slate-200">Month</Label>
+                <Select value={String(selectedExportMonth)} onValueChange={(value) => setSelectedExportMonth(Number(value))}>
+                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-700 border-slate-600">
+                    {MONTH_OPTIONS.map((month) => (
+                      <SelectItem key={month.value} value={String(month.value)} className="text-white">
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-slate-200">Year</Label>
+                <Input
+                  type="number"
+                  value={selectedExportYear}
+                  onChange={(e) => setSelectedExportYear(Number(e.target.value) || new Date().getFullYear())}
+                  className="bg-slate-700 border-slate-600 text-white mt-1"
+                />
               </div>
 
               <div className="md:col-span-2">
@@ -701,7 +779,7 @@ export default function ComputeUtilitiesPage() {
       )}
 
       <Dialog open={Boolean(viewingComputation)} onOpenChange={() => setViewingComputation(null)}>
-        <DialogContent className="bg-slate-800 border-slate-700">
+        <DialogContent className="bg-slate-800 border-slate-700 max-w-4xl">
           <DialogHeader>
             <DialogTitle className="text-white">Utility Computation Preview</DialogTitle>
             <DialogDescription className="text-slate-400">
@@ -716,21 +794,74 @@ export default function ComputeUtilitiesPage() {
               This is the first reading for this pair and utility type. A previous reference is required to compute billing.
             </p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              <div className="rounded border border-slate-600 bg-slate-700 p-3 text-slate-200">
-                <p>Previous Reading Date: {new Date(viewingBillingData.previousDate).toLocaleDateString()}</p>
-                <p>Current Reading Date: {new Date(viewingBillingData.currentDate).toLocaleDateString()}</p>
-                <p>Total Usage: {viewingBillingData.totalUsage.toFixed(2)}</p>
-                <p>Total Amount: {formatMoney(viewingBillingData.amount)}</p>
-              </div>
-              <div className="rounded border border-slate-600 bg-slate-700 p-3 text-slate-200">
-                <p>First Floor Usage: {viewingBillingData.firstFloorUsage.toFixed(2)}</p>
-                <p>First Floor Share: {viewingBillingData.firstFloorPercentage.toFixed(2)}%</p>
-                <p>First Floor Amount: {formatMoney(viewingBillingData.firstFloorAmount)}</p>
-                <p>Second Floor Usage: {viewingBillingData.secondFloorUsage.toFixed(2)}</p>
-                <p>Second Floor Share: {viewingBillingData.secondFloorPercentage.toFixed(2)}%</p>
-                <p>Second Floor Amount: {formatMoney(viewingBillingData.secondFloorAmount)}</p>
-              </div>
+            <div className="rounded border border-slate-600 bg-white text-slate-900 p-4 space-y-4">
+              <h3 className="text-center font-semibold">
+                {viewingBillingData.unitName} ({viewingBillingData.type}) - {new Date(viewingBillingData.currentDate).toLocaleDateString()}
+              </h3>
+              <table className="w-full text-sm border border-slate-900 border-collapse">
+                <thead>
+                  <tr>
+                    <th className="border border-slate-900 px-2 py-1 text-left">Location</th>
+                    <th className="border border-slate-900 px-2 py-1 text-right">Current</th>
+                    <th className="border border-slate-900 px-2 py-1 text-right">Previous</th>
+                    <th className="border border-slate-900 px-2 py-1 text-right">Consumption</th>
+                    <th className="border border-slate-900 px-2 py-1 text-right">Percentage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="border border-slate-900 px-2 py-1">First Floor</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.currentFirstFloor.toFixed(2)}</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.previousFirstFloor.toFixed(2)}</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.firstFloorUsage.toFixed(2)}</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.firstFloorPercentage.toFixed(2)}%</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-slate-900 px-2 py-1">Second Floor</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.currentSecondFloor.toFixed(2)}</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.previousSecondFloor.toFixed(2)}</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.secondFloorUsage.toFixed(2)}</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.secondFloorPercentage.toFixed(2)}%</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-slate-900 px-2 py-1 font-semibold">TOTAL</td>
+                    <td className="border border-slate-900 px-2 py-1" />
+                    <td className="border border-slate-900 px-2 py-1" />
+                    <td className="border border-slate-900 px-2 py-1 text-right font-semibold">{viewingBillingData.totalUsage.toFixed(2)}</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right font-semibold">100%</td>
+                  </tr>
+                </tbody>
+              </table>
+              <table className="w-full text-sm border border-slate-900 border-collapse">
+                <thead>
+                  <tr>
+                    <th className="border border-slate-900 px-2 py-1 text-left">Location</th>
+                    <th className="border border-slate-900 px-2 py-1 text-right">Total Amount</th>
+                    <th className="border border-slate-900 px-2 py-1 text-right">Percentage</th>
+                    <th className="border border-slate-900 px-2 py-1 text-right">Amount per Location</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="border border-slate-900 px-2 py-1">First Floor</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.amount.toFixed(2)}</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.firstFloorPercentage.toFixed(2)}%</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.firstFloorAmount.toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-slate-900 px-2 py-1">Second Floor</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.amount.toFixed(2)}</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.secondFloorPercentage.toFixed(2)}%</td>
+                    <td className="border border-slate-900 px-2 py-1 text-right">{viewingBillingData.secondFloorAmount.toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-slate-900 px-2 py-1 font-semibold">TOTAL</td>
+                    <td className="border border-slate-900 px-2 py-1" />
+                    <td className="border border-slate-900 px-2 py-1" />
+                    <td className="border border-slate-900 px-2 py-1 text-right font-semibold">{viewingBillingData.amount.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           )}
         </DialogContent>

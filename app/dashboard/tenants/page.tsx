@@ -107,6 +107,26 @@ export default function TenantsPage() {
                               <p className="text-slate-400">Messenger</p>
                               <p className="text-white">{unit.tenant.messenger || 'N/A'}</p>
                             </div>
+                            <div>
+                              <p className="text-slate-400">Gov ID</p>
+                              <p className="text-white">
+                                {unit.tenant.gov_id_type && unit.tenant.gov_id_no
+                                  ? `${unit.tenant.gov_id_type} - ${unit.tenant.gov_id_no}`
+                                  : 'N/A'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-slate-400">ID Issued / Expiry</p>
+                              <p className="text-white">
+                                {unit.tenant.id_issued_date
+                                  ? new Date(unit.tenant.id_issued_date).toLocaleDateString()
+                                  : 'N/A'}{' '}
+                                /{' '}
+                                {unit.tenant.id_expiry_date
+                                  ? new Date(unit.tenant.id_expiry_date).toLocaleDateString()
+                                  : 'N/A'}
+                              </p>
+                            </div>
                           </div>
                         ) : (
                           <p className="text-slate-400 italic">No tenant assigned</p>
