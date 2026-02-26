@@ -10,8 +10,8 @@ export interface ContractData {
   landlordPostalAddress: string
   landlordGovIdType: string
   landlordGovIdNo: string
-  landlordIdIssuedDate: string
-  landlordIdExpiryDate: string
+  landlordIdIssuedDate: string | null
+  landlordIdExpiryDate: string | null
   propertyAddress: string
   year: number
   firstName: string
@@ -28,11 +28,11 @@ export interface ContractData {
   endContract: string
   tenantGovIdType: string
   tenantGovIdNo: string
-  tenantIdIssuedDate: string
-  tenantIdExpiryDate: string
+  tenantIdIssuedDate: string | null
+  tenantIdExpiryDate: string | null
 }
 
-function formatLongDate(value: string) {
+function formatLongDate(value: string | null | undefined) {
   if (!value) return ''
   return new Date(value).toLocaleDateString('en-US', {
     month: 'long',
@@ -160,6 +160,45 @@ function getContractBlocks(data: ContractData): Block[] {
   const tenantAcknowledgeName = toUpperInitialName(data.firstName, data.middleName, data.lastName)
   const rentText = `${toWords(data.rent)} PESOS (${formatCurrency(data.rent)})`
   const cashBondText = `${toWords(data.cashBond)} PESOS (${formatCurrency(data.cashBond)})`
+  const buildIdDescription = (
+    personName: string,
+    idType: string,
+    idNo: string,
+    issuedDate: string | null,
+    expiryDate: string | null,
+    expiryLabelWhenIssued: string,
+    expiryLabelWhenNoIssued: string
+  ) => {
+    const details = [`${personName} with ${idType} No. ${idNo}`]
+    if (issuedDate) {
+      details.push(`issued on ${formatLongDate(issuedDate)}`)
+    }
+    if (expiryDate) {
+      details.push(`${issuedDate ? expiryLabelWhenIssued : expiryLabelWhenNoIssued} ${formatLongDate(expiryDate)}`)
+    }
+    return details.join(' ')
+  }
+
+  const landlordIdDescription = buildIdDescription(
+    lessorInitialName,
+    data.landlordGovIdType,
+    data.landlordGovIdNo,
+    data.landlordIdIssuedDate,
+    data.landlordIdExpiryDate,
+    'and Expiry date on',
+    'Expiry date on'
+  )
+
+  const tenantIdDescription = buildIdDescription(
+    tenantAcknowledgeName,
+    data.tenantGovIdType,
+    data.tenantGovIdNo,
+    data.tenantIdIssuedDate,
+    data.tenantIdExpiryDate,
+    'with expiry date on',
+    'Expiry date on'
+  )
+
   const clauses: Block[] = [
     {
       text: `1. That the monthly rental shall be ${rentText}, Philippine currency, to be paid by the LESSEE at the office of the LESSOR at 65 Sacred Heart St., Zone 1, San Felipe, Naga City, the rental for the first month to be paid upon signing of the herein contract and the rental for the subsequent months to be paid NOT LATER THAN THE FIRST FIVE (5) DAYS OF EACH CALENDAR MONTH without the necessity of express demand and without delay on any ground whatsoever, plus FIVE PERCENT (5%) surcharge/interest per month on all amounts due and in arrears reckoned from the time of default payment until fully paid.`,
@@ -387,7 +426,7 @@ function getContractBlocks(data: ContractData): Block[] {
     },
     { text: '' },
     {
-      text: `${lessorInitialName} with ${data.landlordGovIdType} No. ${data.landlordGovIdNo} issued on ${formatLongDate(data.landlordIdIssuedDate)} and Expiry date on ${formatLongDate(data.landlordIdExpiryDate)} and ${tenantAcknowledgeName} with ${data.tenantGovIdType} No. ${data.tenantGovIdNo} issued on ${formatLongDate(data.tenantIdIssuedDate)} with expiry date on ${formatLongDate(data.tenantIdExpiryDate)} known to me be the same persons who executed the foregoing instrument containing of __PAGE_COUNT__, and including this page, duly signed by the parties at the left hand margin on each & every page thereof, they all acknowledge to me that the same is their own free and voluntary act indeed.`,
+      text: `${landlordIdDescription} and ${tenantIdDescription} known to me be the same persons who executed the foregoing instrument containing of __PAGE_COUNT__, and including this page, duly signed by the parties at the left hand margin on each & every page thereof, they all acknowledge to me that the same is their own free and voluntary act indeed.`,
       align: 'justify',
     },
     { text: '' },

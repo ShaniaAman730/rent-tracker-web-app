@@ -231,7 +231,6 @@ export default function ContractMonitoringPage() {
       contractForm.maritalStatus,
       contractForm.govIdType,
       contractForm.govIdNo,
-      contractForm.idIssuedDate,
       contractForm.idExpiryDate,
       contractForm.tenantAddress,
       contractForm.unitSpecification,
@@ -401,8 +400,8 @@ export default function ContractMonitoringPage() {
         landlordPostalAddress: landlord.postal_address,
         landlordGovIdType: landlord.gov_id_type,
         landlordGovIdNo: landlord.gov_id_no,
-        landlordIdIssuedDate: landlord.id_issued_date,
-        landlordIdExpiryDate: landlord.id_expiry_date,
+        landlordIdIssuedDate: landlord.id_issued_date || null,
+        landlordIdExpiryDate: landlord.id_expiry_date || null,
         propertyAddress: `${unit.name}, ${property.address}`,
         year: contract.year,
         firstName: contract.first_name,
@@ -419,8 +418,8 @@ export default function ContractMonitoringPage() {
         endContract: contract.end_contract,
         tenantGovIdType: contract.gov_id_type || tenant?.gov_id_type || '',
         tenantGovIdNo: contract.gov_id_no || tenant?.gov_id_no || '',
-        tenantIdIssuedDate: contract.id_issued_date || tenant?.id_issued_date || '',
-        tenantIdExpiryDate: contract.id_expiry_date || tenant?.id_expiry_date || '',
+        tenantIdIssuedDate: contract.id_issued_date || tenant?.id_issued_date || null,
+        tenantIdExpiryDate: contract.id_expiry_date || tenant?.id_expiry_date || null,
       }
 
       const fileBase = `${unit.name}-contract-${contract.year}`.replace(/\s+/g, '-')

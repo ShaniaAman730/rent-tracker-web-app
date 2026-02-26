@@ -20,6 +20,12 @@ import {
   exportBillingToPdf,
   exportBillingToPng,
 } from '@/lib/export/billing-exporters'
+import {
+  exportUtilityTrackerToExcel,
+  exportUtilityTrackerToPdf,
+  exportUtilityTrackerToWord,
+  UtilityTrackerExportRow,
+} from '@/lib/export/tracker-exporters'
 import { AddUtilityDialog } from '@/components/dialogs/add-utility-dialog'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -50,6 +56,7 @@ import {
 
 type UtilityType = 'MNWD' | 'Casureco'
 type ExportType = 'word' | 'pdf' | 'png' | 'excel'
+type TrackerExportType = 'word' | 'pdf' | 'excel'
 
 const MONTH_OPTIONS = [
   { value: 0, label: 'January' },
@@ -101,6 +108,12 @@ export default function ComputeUtilitiesPage() {
   const [trackerDate, setTrackerDate] = useState(new Date())
   const [viewingComputation, setViewingComputation] = useState<any>(null)
   const [exportingUtilityId, setExportingUtilityId] = useState<string | null>(null)
+  const [trackerExportOpen, setTrackerExportOpen] = useState(false)
+  const [trackerExportUtilityType, setTrackerExportUtilityType] = useState<UtilityType>('MNWD')
+  const [trackerExportFormat, setTrackerExportFormat] = useState<TrackerExportType>('pdf')
+  const [trackerExportStartDate, setTrackerExportStartDate] = useState('')
+  const [trackerExportEndDate, setTrackerExportEndDate] = useState('')
+  const [exportingTracker, setExportingTracker] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -212,6 +225,9 @@ export default function ComputeUtilitiesPage() {
         (a, b) => new Date(b.date_of_reading).getTime() - new Date(a.date_of_reading).getTime()
       )[0]
   }
+
+  const getUsage = (previousUnitReading: number, currentUnitReading: number) =>
+    previousUnitReading - currentUnitReading
 
   const trackerMonth = trackerDate.getMonth()
   const trackerYear = trackerDate.getFullYear()
@@ -343,8 +359,106 @@ export default function ComputeUtilitiesPage() {
     }
   }
 
+  function openTrackerExport(type: UtilityType, format: TrackerExportType) {
+    const start = new Date(trackerYear, trackerMonth, 1).toISOString().slice(0, 10)
+    const end = new Date(trackerYear, trackerMonth + 1, 0).toISOString().slice(0, 10)
+    setTrackerExportUtilityType(type)
+    setTrackerExportFormat(format)
+    setTrackerExportStartDate(start)
+    setTrackerExportEndDate(end)
+    setTrackerExportOpen(true)
+  }
+
+  async function handleExportTracker() {
+    if (!selectedPairLabel) {
+      alert('Please select a pair first.')
+      return
+    }
+    if (!trackerExportStartDate || !trackerExportEndDate) {
+      alert('Please select a valid date range.')
+      return
+    }
+
+    const list = trackerExportUtilityType === 'MNWD' ? mnwdUtilities : casurecoUtilities
+    const start = new Date(trackerExportStartDate)
+    const end = new Date(trackerExportEndDate)
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+      alert('Invalid timeline. Please check start and end dates.')
+      return
+    }
+
+    const filtered = [...list]
+      .filter((utility) => {
+        const readingDate = new Date(utility.date_of_reading)
+        return readingDate >= start && readingDate <= end
+      })
+      .sort(
+        (a, b) => new Date(a.date_of_reading).getTime() - new Date(b.date_of_reading).getTime()
+      )
+
+    if (filtered.length === 0) {
+      alert('No records found for the selected timeline.')
+      return
+    }
+
+    const rows: UtilityTrackerExportRow[] = filtered.map((utility) => {
+      const previous = getPreviousReading(utility, list)
+      const previousUnitReading = previous ? Number(previous.unit_reading) : null
+      const currentUnitReading = Number(utility.unit_reading)
+      const usage =
+        previousUnitReading === null ? null : getUsage(previousUnitReading, currentUnitReading)
+
+      return {
+        dueDate: utility.due_date,
+        previousDateOfReading: previous?.date_of_reading || '',
+        previousUnitReading,
+        currentDateOfReading: utility.date_of_reading,
+        currentUnitReading,
+        usage,
+        amount: Number(utility.amount),
+      }
+    })
+
+    const safePairLabel = selectedPairLabel.replace(/[\\/:*?"<>|]/g, '-')
+    const fileBase = `${safePairLabel}-${trackerExportUtilityType}-${trackerExportStartDate}-to-${trackerExportEndDate}`
+
+    try {
+      setExportingTracker(true)
+      if (trackerExportFormat === 'word') {
+        await exportUtilityTrackerToWord(
+          selectedPairLabel,
+          trackerExportUtilityType,
+          rows,
+          `${fileBase}.docx`
+        )
+      } else if (trackerExportFormat === 'pdf') {
+        exportUtilityTrackerToPdf(
+          selectedPairLabel,
+          trackerExportUtilityType,
+          rows,
+          `${fileBase}.pdf`
+        )
+      } else {
+        exportUtilityTrackerToExcel(
+          selectedPairLabel,
+          trackerExportUtilityType,
+          rows,
+          `${fileBase}.xlsx`
+        )
+      }
+      setTrackerExportOpen(false)
+    } catch (error) {
+      console.error('Error exporting tracker:', error)
+      alert('Unable to export tracker.')
+    } finally {
+      setExportingTracker(false)
+    }
+  }
+
   const renderTrackerTable = (
     title: string,
+    utilityType: UtilityType,
     list: any[],
     showAll: boolean,
     onToggle: (value: boolean) => void
@@ -359,14 +473,39 @@ export default function ComputeUtilitiesPage() {
       <Card className="p-6 border-slate-700 bg-slate-800">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-white">{title}</h2>
-          <Button
-            onClick={() => onToggle(!showAll)}
-            variant="outline"
-            size="sm"
-            className="border-slate-600 text-slate-300 hover:bg-slate-700"
-          >
-            {showAll ? 'Show Last 7' : 'See More'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                >
+                  <Download size={14} className="mr-1" />
+                  Export Tracker
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="bg-slate-700 border-slate-600 text-white">
+                <DropdownMenuItem onClick={() => openTrackerExport(utilityType, 'word')}>
+                  Word (.docx)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openTrackerExport(utilityType, 'pdf')}>
+                  PDF (.pdf)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => openTrackerExport(utilityType, 'excel')}>
+                  Excel (.xlsx)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              onClick={() => onToggle(!showAll)}
+              variant="outline"
+              size="sm"
+              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+            >
+              {showAll ? 'Show Last 7' : 'See More'}
+            </Button>
+          </div>
         </div>
 
         {pairUtilitiesLoading ? (
@@ -397,7 +536,12 @@ export default function ComputeUtilitiesPage() {
               <tbody>
                 {rows.map((utility) => {
                   const previous = getPreviousReading(utility, list)
-                  const usage = previous ? Math.max(utility.unit_reading - previous.unit_reading, 0) : null
+                  const previousUnitReading = previous ? Number(previous.unit_reading) : null
+                  const currentUnitReading = Number(utility.unit_reading)
+                  const usage =
+                    previousUnitReading === null
+                      ? null
+                      : getUsage(previousUnitReading, currentUnitReading)
                   return (
                     <tr key={utility.id} className="border-b border-slate-700 hover:bg-slate-700">
                       <td className="px-3 py-2 text-white">{selectedPairLabel}</td>
@@ -408,13 +552,13 @@ export default function ComputeUtilitiesPage() {
                         {previous ? new Date(previous.date_of_reading).toLocaleDateString() : '-'}
                       </td>
                       <td className="px-3 py-2 text-right text-slate-300">
-                        {previous ? Number(previous.unit_reading).toFixed(2) : '-'}
+                        {previousUnitReading !== null ? previousUnitReading.toFixed(2) : '-'}
                       </td>
                       <td className="px-3 py-2 text-slate-300">
                         {new Date(utility.date_of_reading).toLocaleDateString()}
                       </td>
                       <td className="px-3 py-2 text-right text-slate-300">
-                        {Number(utility.unit_reading).toFixed(2)}
+                        {currentUnitReading.toFixed(2)}
                       </td>
                       <td className="px-3 py-2 text-right text-slate-300">
                         {usage === null ? 'N/A (first)' : usage.toFixed(2)}
@@ -655,8 +799,14 @@ export default function ComputeUtilitiesPage() {
             </div>
           </Card>
 
-          {renderTrackerTable('MNWD Tracker', mnwdUtilities, showAllMnwd, setShowAllMnwd)}
-          {renderTrackerTable('Casureco Tracker', casurecoUtilities, showAllCasureco, setShowAllCasureco)}
+          {renderTrackerTable('MNWD Tracker', 'MNWD', mnwdUtilities, showAllMnwd, setShowAllMnwd)}
+          {renderTrackerTable(
+            'Casureco Tracker',
+            'Casureco',
+            casurecoUtilities,
+            showAllCasureco,
+            setShowAllCasureco
+          )}
         </>
       ) : (
         <Card className="p-8 border-slate-700 bg-slate-800 text-center">
@@ -750,6 +900,84 @@ export default function ComputeUtilitiesPage() {
               </table>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={trackerExportOpen} onOpenChange={setTrackerExportOpen}>
+        <DialogContent className="bg-slate-800 border-slate-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Export {trackerExportUtilityType} Tracker</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Set timeline and export format for {selectedPairLabel}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-slate-200">Format</Label>
+              <Select
+                value={trackerExportFormat}
+                onValueChange={(value) => setTrackerExportFormat(value as TrackerExportType)}
+              >
+                <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-700 border-slate-600">
+                  <SelectItem value="word" className="text-white">
+                    Word (.docx)
+                  </SelectItem>
+                  <SelectItem value="pdf" className="text-white">
+                    PDF (.pdf)
+                  </SelectItem>
+                  <SelectItem value="excel" className="text-white">
+                    Excel (.xlsx)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="tracker_export_start" className="text-slate-200">
+                  Start Date
+                </Label>
+                <Input
+                  id="tracker_export_start"
+                  type="date"
+                  value={trackerExportStartDate}
+                  onChange={(event) => setTrackerExportStartDate(event.target.value)}
+                  className="mt-1 bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="tracker_export_end" className="text-slate-200">
+                  End Date
+                </Label>
+                <Input
+                  id="tracker_export_end"
+                  type="date"
+                  value={trackerExportEndDate}
+                  onChange={(event) => setTrackerExportEndDate(event.target.value)}
+                  className="mt-1 bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setTrackerExportOpen(false)}
+                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                disabled={exportingTracker}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleExportTracker}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={exportingTracker}
+              >
+                {exportingTracker ? 'Exporting...' : 'Export'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
