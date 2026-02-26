@@ -58,6 +58,7 @@ type UtilityType = 'MNWD' | 'Casureco'
 type ExportType = 'word' | 'pdf' | 'png' | 'excel'
 type TrackerExportType = 'word' | 'pdf' | 'excel'
 const TRACKER_DATE_STORAGE_KEY = 'compute_utilities_tracker_date'
+const SELECTED_PAIR_STORAGE_KEY = 'compute_utilities_selected_pair'
 
 const MONTH_OPTIONS = [
   { value: 0, label: 'January' },
@@ -84,6 +85,13 @@ function getPairLabel(first: any, second: any) {
     return `${first.propertyCode} ${first.name} (First Floor) + ${second.name} (Second Floor)`
   }
   return `${first.propertyCode} ${first.name} (First Floor) + ${second.propertyCode} ${second.name} (Second Floor)`
+}
+
+function formatDateInputLocal(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 export default function ComputeUtilitiesPage() {
@@ -136,6 +144,17 @@ export default function ComputeUtilitiesPage() {
     localStorage.setItem(TRACKER_DATE_STORAGE_KEY, trackerDate.toISOString())
   }, [trackerDate])
 
+  useEffect(() => {
+    const cachedPairId = localStorage.getItem(SELECTED_PAIR_STORAGE_KEY)
+    if (!cachedPairId) return
+    setSelectedPairingId(cachedPairId)
+  }, [])
+
+  useEffect(() => {
+    if (!selectedPairingId) return
+    localStorage.setItem(SELECTED_PAIR_STORAGE_KEY, selectedPairingId)
+  }, [selectedPairingId])
+
   async function loadData() {
     try {
       setLoading(true)
@@ -149,7 +168,11 @@ export default function ComputeUtilitiesPage() {
       setPairings(pairingsData)
 
       if (pairingsData.length > 0) {
-        setSelectedPairingId(pairingsData[0].id)
+        const cachedPairId = localStorage.getItem(SELECTED_PAIR_STORAGE_KEY)
+        const hasCachedPair = Boolean(
+          cachedPairId && pairingsData.some((pairing: any) => pairing.id === cachedPairId)
+        )
+        setSelectedPairingId(hasCachedPair ? cachedPairId! : pairingsData[0].id)
       }
     } catch (error) {
       console.error('Error loading compute utilities data:', error)
@@ -411,8 +434,8 @@ export default function ComputeUtilitiesPage() {
   }
 
   function openTrackerExport(type: UtilityType, format: TrackerExportType) {
-    const start = new Date(trackerYear, 0, 1).toISOString().slice(0, 10)
-    const end = new Date(trackerYear, 11, 31).toISOString().slice(0, 10)
+    const start = formatDateInputLocal(new Date(trackerYear, 0, 1))
+    const end = formatDateInputLocal(new Date(trackerYear, 11, 31))
     setTrackerExportUtilityType(type)
     setTrackerExportFormat(format)
     setTrackerExportStartDate(start)
@@ -927,7 +950,7 @@ export default function ComputeUtilitiesPage() {
       </Dialog>
 
       <Dialog open={viewReadingsOpen} onOpenChange={setViewReadingsOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 max-w-6xl">
+        <DialogContent className="bg-slate-800 border-slate-700 w-[96vw] max-w-[96vw] md:max-w-6xl">
           <DialogHeader>
             <DialogTitle className="text-white">
               {viewReadingsUtilityType} Readings - {selectedPairLabel}
@@ -966,42 +989,42 @@ export default function ComputeUtilitiesPage() {
               <p className="text-slate-400">No readings found for {viewReadingsYear}.</p>
             ) : (
               <div className="overflow-x-auto max-h-[60vh]">
-                <table className="w-full text-sm">
+                <table className="w-full text-xs table-fixed">
                   <thead>
                     <tr className="border-b border-slate-600">
-                      <th className="px-3 py-2 text-left text-slate-300">Due Date</th>
-                      <th className="px-3 py-2 text-left text-slate-300">Previous Date of Reading</th>
-                      <th className="px-3 py-2 text-right text-slate-300">Previous Unit Reading</th>
-                      <th className="px-3 py-2 text-left text-slate-300">Current Date of Reading</th>
-                      <th className="px-3 py-2 text-right text-slate-300">Current Unit Reading</th>
-                      <th className="px-3 py-2 text-right text-slate-300">Usage</th>
-                      <th className="px-3 py-2 text-right text-slate-300">Amount</th>
+                      <th className="px-2 py-2 text-left text-slate-300 break-words">Due Date</th>
+                      <th className="px-2 py-2 text-left text-slate-300 break-words">Previous Date of Reading</th>
+                      <th className="px-2 py-2 text-right text-slate-300 break-words">Previous Unit Reading</th>
+                      <th className="px-2 py-2 text-left text-slate-300 break-words">Current Date of Reading</th>
+                      <th className="px-2 py-2 text-right text-slate-300 break-words">Current Unit Reading</th>
+                      <th className="px-2 py-2 text-right text-slate-300 break-words">Usage</th>
+                      <th className="px-2 py-2 text-right text-slate-300 break-words">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     {viewReadingsRows.map((row, index) => (
                       <tr key={`${row.currentDateOfReading}-${index}`} className="border-b border-slate-700">
-                        <td className="px-3 py-2 text-slate-300">
+                        <td className="px-2 py-2 text-slate-300 break-words">
                           {new Date(row.dueDate).toLocaleDateString()}
                         </td>
-                        <td className="px-3 py-2 text-slate-300">
+                        <td className="px-2 py-2 text-slate-300 break-words">
                           {row.previousDateOfReading
                             ? new Date(row.previousDateOfReading).toLocaleDateString()
                             : '-'}
                         </td>
-                        <td className="px-3 py-2 text-right text-slate-300">
+                        <td className="px-2 py-2 text-right text-slate-300 break-words">
                           {row.previousUnitReading === null ? '-' : row.previousUnitReading.toFixed(2)}
                         </td>
-                        <td className="px-3 py-2 text-slate-300">
+                        <td className="px-2 py-2 text-slate-300 break-words">
                           {new Date(row.currentDateOfReading).toLocaleDateString()}
                         </td>
-                        <td className="px-3 py-2 text-right text-slate-300">
+                        <td className="px-2 py-2 text-right text-slate-300 break-words">
                           {row.currentUnitReading.toFixed(2)}
                         </td>
-                        <td className="px-3 py-2 text-right text-slate-300">
+                        <td className="px-2 py-2 text-right text-slate-300 break-words">
                           {row.usage === null ? 'N/A (first)' : row.usage.toFixed(2)}
                         </td>
-                        <td className="px-3 py-2 text-right text-white">{formatMoney(row.amount)}</td>
+                        <td className="px-2 py-2 text-right text-white break-words">{formatMoney(row.amount)}</td>
                       </tr>
                     ))}
                   </tbody>
