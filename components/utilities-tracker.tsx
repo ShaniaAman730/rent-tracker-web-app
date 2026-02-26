@@ -26,6 +26,7 @@ const MONTH_OPTIONS = [
   { value: 10, label: 'November' },
   { value: 11, label: 'December' },
 ]
+const UTILITIES_TRACKER_DATE_STORAGE_KEY = 'utilities_tracker_current_date'
 
 export function UtilitiesTracker() {
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -39,6 +40,18 @@ export function UtilitiesTracker() {
 
   useEffect(() => {
     loadData()
+  }, [currentDate])
+
+  useEffect(() => {
+    const cached = localStorage.getItem(UTILITIES_TRACKER_DATE_STORAGE_KEY)
+    if (!cached) return
+    const parsed = new Date(cached)
+    if (Number.isNaN(parsed.getTime())) return
+    setCurrentDate(new Date(parsed.getFullYear(), parsed.getMonth(), 1))
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem(UTILITIES_TRACKER_DATE_STORAGE_KEY, currentDate.toISOString())
   }, [currentDate])
 
   async function loadData() {

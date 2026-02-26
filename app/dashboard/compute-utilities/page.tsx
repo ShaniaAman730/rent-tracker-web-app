@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { getPropertiesWithUnits } from '@/lib/api/properties'
-import { getCurrentUser, getUsersMapByIds } from '@/lib/api/users'
+import { getCurrentUser } from '@/lib/api/users'
 import {
   deleteUtility,
   getUtilitiesWithPaymentsForPairings,
@@ -57,6 +57,7 @@ import {
 type UtilityType = 'MNWD' | 'Casureco'
 type ExportType = 'word' | 'pdf' | 'png' | 'excel'
 type TrackerExportType = 'word' | 'pdf' | 'excel'
+const TRACKER_DATE_STORAGE_KEY = 'compute_utilities_tracker_date'
 
 const MONTH_OPTIONS = [
   { value: 0, label: 'January' },
@@ -91,14 +92,10 @@ export default function ComputeUtilitiesPage() {
   const [loading, setLoading] = useState(true)
   const [pairUtilitiesLoading, setPairUtilitiesLoading] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
-  const [recordedByNames, setRecordedByNames] = useState<Map<string, string>>(new Map())
 
   const [selectedPairingId, setSelectedPairingId] = useState<string>('')
   const [newFirstUnitId, setNewFirstUnitId] = useState<string>('')
   const [newSecondUnitId, setNewSecondUnitId] = useState<string>('')
-
-  const [showAllMnwd, setShowAllMnwd] = useState(false)
-  const [showAllCasureco, setShowAllCasureco] = useState(false)
 
   const [mnwdUtilities, setMnwdUtilities] = useState<any[]>([])
   const [casurecoUtilities, setCasurecoUtilities] = useState<any[]>([])
@@ -114,6 +111,9 @@ export default function ComputeUtilitiesPage() {
   const [trackerExportStartDate, setTrackerExportStartDate] = useState('')
   const [trackerExportEndDate, setTrackerExportEndDate] = useState('')
   const [exportingTracker, setExportingTracker] = useState(false)
+  const [viewReadingsOpen, setViewReadingsOpen] = useState(false)
+  const [viewReadingsUtilityType, setViewReadingsUtilityType] = useState<UtilityType>('MNWD')
+  const [viewReadingsYear, setViewReadingsYear] = useState(new Date().getFullYear())
 
   useEffect(() => {
     loadData()
@@ -123,6 +123,18 @@ export default function ComputeUtilitiesPage() {
     if (!selectedPairingId) return
     loadUtilitiesForSelectedPairing(selectedPairingId)
   }, [selectedPairingId])
+
+  useEffect(() => {
+    const cached = localStorage.getItem(TRACKER_DATE_STORAGE_KEY)
+    if (!cached) return
+    const parsed = new Date(cached)
+    if (Number.isNaN(parsed.getTime())) return
+    setTrackerDate(new Date(parsed.getFullYear(), parsed.getMonth(), 1))
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem(TRACKER_DATE_STORAGE_KEY, trackerDate.toISOString())
+  }, [trackerDate])
 
   async function loadData() {
     try {
@@ -202,11 +214,6 @@ export default function ComputeUtilitiesPage() {
       const casureco = sortedByTypeAndDate('Casureco')
       setMnwdUtilities(mnwd)
       setCasurecoUtilities(casureco)
-
-      const userIds = utilities
-        .map((utility: any) => utility.payment?.recorded_by_user_id)
-        .filter(Boolean)
-      setRecordedByNames(await getUsersMapByIds(userIds))
     } catch (error) {
       console.error('Error loading paired utilities:', error)
     } finally {
@@ -227,7 +234,51 @@ export default function ComputeUtilitiesPage() {
   }
 
   const getUsage = (previousUnitReading: number, currentUnitReading: number) =>
-    previousUnitReading - currentUnitReading
+    currentUnitReading - previousUnitReading
+
+  const getRemarks = (utility: any) => {
+    if (!selectedPairing) return 'Not paid'
+    const firstPayment = (utility.payments || []).find(
+      (payment: any) => payment.unit_id === selectedPairing.first_unit_id
+    )
+    const secondPayment = (utility.payments || []).find(
+      (payment: any) => payment.unit_id === selectedPairing.second_unit_id
+    )
+
+    const firstPaid = Boolean(firstPayment?.paid)
+    const secondPaid = Boolean(secondPayment?.paid)
+    if (firstPaid && secondPaid) return 'Both paid'
+    if (firstPaid) return 'First floor paid'
+    if (secondPaid) return 'Second floor paid'
+    return 'Not paid'
+  }
+
+  const buildTrackerRows = (list: any[], startDate: Date, endDate: Date): UtilityTrackerExportRow[] =>
+    [...list]
+      .filter((utility) => {
+        const readingDate = new Date(utility.date_of_reading)
+        return readingDate >= startDate && readingDate <= endDate
+      })
+      .sort(
+        (a, b) => new Date(a.date_of_reading).getTime() - new Date(b.date_of_reading).getTime()
+      )
+      .map((utility) => {
+        const previous = getPreviousReading(utility, list)
+        const previousUnitReading = previous ? Number(previous.unit_reading) : null
+        const currentUnitReading = Number(utility.unit_reading)
+        const usage =
+          previousUnitReading === null ? null : getUsage(previousUnitReading, currentUnitReading)
+
+        return {
+          dueDate: utility.due_date,
+          previousDateOfReading: previous?.date_of_reading || '',
+          previousUnitReading,
+          currentDateOfReading: utility.date_of_reading,
+          currentUnitReading,
+          usage,
+          amount: Number(utility.amount),
+        }
+      })
 
   const trackerMonth = trackerDate.getMonth()
   const trackerYear = trackerDate.getFullYear()
@@ -360,13 +411,19 @@ export default function ComputeUtilitiesPage() {
   }
 
   function openTrackerExport(type: UtilityType, format: TrackerExportType) {
-    const start = new Date(trackerYear, trackerMonth, 1).toISOString().slice(0, 10)
-    const end = new Date(trackerYear, trackerMonth + 1, 0).toISOString().slice(0, 10)
+    const start = new Date(trackerYear, 0, 1).toISOString().slice(0, 10)
+    const end = new Date(trackerYear, 11, 31).toISOString().slice(0, 10)
     setTrackerExportUtilityType(type)
     setTrackerExportFormat(format)
     setTrackerExportStartDate(start)
     setTrackerExportEndDate(end)
     setTrackerExportOpen(true)
+  }
+
+  function openViewReadings(type: UtilityType) {
+    setViewReadingsUtilityType(type)
+    setViewReadingsYear(trackerYear)
+    setViewReadingsOpen(true)
   }
 
   async function handleExportTracker() {
@@ -388,37 +445,11 @@ export default function ComputeUtilitiesPage() {
       return
     }
 
-    const filtered = [...list]
-      .filter((utility) => {
-        const readingDate = new Date(utility.date_of_reading)
-        return readingDate >= start && readingDate <= end
-      })
-      .sort(
-        (a, b) => new Date(a.date_of_reading).getTime() - new Date(b.date_of_reading).getTime()
-      )
-
-    if (filtered.length === 0) {
+    const rows = buildTrackerRows(list, start, end)
+    if (rows.length === 0) {
       alert('No records found for the selected timeline.')
       return
     }
-
-    const rows: UtilityTrackerExportRow[] = filtered.map((utility) => {
-      const previous = getPreviousReading(utility, list)
-      const previousUnitReading = previous ? Number(previous.unit_reading) : null
-      const currentUnitReading = Number(utility.unit_reading)
-      const usage =
-        previousUnitReading === null ? null : getUsage(previousUnitReading, currentUnitReading)
-
-      return {
-        dueDate: utility.due_date,
-        previousDateOfReading: previous?.date_of_reading || '',
-        previousUnitReading,
-        currentDateOfReading: utility.date_of_reading,
-        currentUnitReading,
-        usage,
-        amount: Number(utility.amount),
-      }
-    })
 
     const safePairLabel = selectedPairLabel.replace(/[\\/:*?"<>|]/g, '-')
     const fileBase = `${safePairLabel}-${trackerExportUtilityType}-${trackerExportStartDate}-to-${trackerExportEndDate}`
@@ -459,21 +490,27 @@ export default function ComputeUtilitiesPage() {
   const renderTrackerTable = (
     title: string,
     utilityType: UtilityType,
-    list: any[],
-    showAll: boolean,
-    onToggle: (value: boolean) => void
+    list: any[]
   ) => {
     const monthRows = list.filter((utility) => {
       const d = new Date(utility.date_of_reading)
       return d.getMonth() === trackerMonth && d.getFullYear() === trackerYear
     })
-    const rows = showAll ? monthRows : monthRows.slice(0, 7)
+    const rows = monthRows
 
     return (
       <Card className="p-6 border-slate-700 bg-slate-800">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-white">{title}</h2>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              onClick={() => openViewReadings(utilityType)}
+            >
+              View Readings
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -497,14 +534,6 @@ export default function ComputeUtilitiesPage() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button
-              onClick={() => onToggle(!showAll)}
-              variant="outline"
-              size="sm"
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
-            >
-              {showAll ? 'Show Last 7' : 'See More'}
-            </Button>
           </div>
         </div>
 
@@ -529,7 +558,6 @@ export default function ComputeUtilitiesPage() {
                   <th className="px-3 py-2 text-right text-slate-300">Usage</th>
                   <th className="px-3 py-2 text-right text-slate-300">Amount</th>
                   <th className="px-3 py-2 text-center text-slate-300">Remarks</th>
-                  <th className="px-3 py-2 text-left text-slate-300">Recorded By</th>
                   <th className="px-3 py-2 text-center text-slate-300">Actions</th>
                 </tr>
               </thead>
@@ -565,13 +593,7 @@ export default function ComputeUtilitiesPage() {
                       </td>
                       <td className="px-3 py-2 text-right text-white">{formatMoney(utility.amount)}</td>
                       <td className="px-3 py-2 text-center text-slate-300">
-                        {utility.payment?.paid ? 'Paid' : 'Not Paid'}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-slate-400">
-                        {utility.payment?.recorded_by_user_id
-                          ? recordedByNames.get(utility.payment.recorded_by_user_id) ||
-                            utility.payment.recorded_by_user_id
-                          : '-'}
+                        {getRemarks(utility)}
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-center gap-2">
@@ -667,6 +689,13 @@ export default function ComputeUtilitiesPage() {
           currentUser.full_name
         )
       : null
+
+  const viewReadingsList = viewReadingsUtilityType === 'MNWD' ? mnwdUtilities : casurecoUtilities
+  const viewReadingsRows = buildTrackerRows(
+    viewReadingsList,
+    new Date(viewReadingsYear, 0, 1),
+    new Date(viewReadingsYear, 11, 31)
+  )
 
   return (
     <div className="space-y-6">
@@ -799,14 +828,8 @@ export default function ComputeUtilitiesPage() {
             </div>
           </Card>
 
-          {renderTrackerTable('MNWD Tracker', 'MNWD', mnwdUtilities, showAllMnwd, setShowAllMnwd)}
-          {renderTrackerTable(
-            'Casureco Tracker',
-            'Casureco',
-            casurecoUtilities,
-            showAllCasureco,
-            setShowAllCasureco
-          )}
+          {renderTrackerTable('MNWD Tracker', 'MNWD', mnwdUtilities)}
+          {renderTrackerTable('Casureco Tracker', 'Casureco', casurecoUtilities)}
         </>
       ) : (
         <Card className="p-8 border-slate-700 bg-slate-800 text-center">
@@ -900,6 +923,92 @@ export default function ComputeUtilitiesPage() {
               </table>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={viewReadingsOpen} onOpenChange={setViewReadingsOpen}>
+        <DialogContent className="bg-slate-800 border-slate-700 max-w-6xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              {viewReadingsUtilityType} Readings - {selectedPairLabel}
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Complete yearly readings table. Use arrows or type a year.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                onClick={() => setViewReadingsYear((value) => value - 1)}
+              >
+                <ChevronLeft size={16} />
+              </Button>
+              <Input
+                type="number"
+                value={viewReadingsYear}
+                onChange={(event) => setViewReadingsYear(Number(event.target.value) || viewReadingsYear)}
+                className="w-28 bg-slate-700 border-slate-600 text-white"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                onClick={() => setViewReadingsYear((value) => value + 1)}
+              >
+                <ChevronRight size={16} />
+              </Button>
+            </div>
+
+            {viewReadingsRows.length === 0 ? (
+              <p className="text-slate-400">No readings found for {viewReadingsYear}.</p>
+            ) : (
+              <div className="overflow-x-auto max-h-[60vh]">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-600">
+                      <th className="px-3 py-2 text-left text-slate-300">Due Date</th>
+                      <th className="px-3 py-2 text-left text-slate-300">Previous Date of Reading</th>
+                      <th className="px-3 py-2 text-right text-slate-300">Previous Unit Reading</th>
+                      <th className="px-3 py-2 text-left text-slate-300">Current Date of Reading</th>
+                      <th className="px-3 py-2 text-right text-slate-300">Current Unit Reading</th>
+                      <th className="px-3 py-2 text-right text-slate-300">Usage</th>
+                      <th className="px-3 py-2 text-right text-slate-300">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {viewReadingsRows.map((row, index) => (
+                      <tr key={`${row.currentDateOfReading}-${index}`} className="border-b border-slate-700">
+                        <td className="px-3 py-2 text-slate-300">
+                          {new Date(row.dueDate).toLocaleDateString()}
+                        </td>
+                        <td className="px-3 py-2 text-slate-300">
+                          {row.previousDateOfReading
+                            ? new Date(row.previousDateOfReading).toLocaleDateString()
+                            : '-'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-slate-300">
+                          {row.previousUnitReading === null ? '-' : row.previousUnitReading.toFixed(2)}
+                        </td>
+                        <td className="px-3 py-2 text-slate-300">
+                          {new Date(row.currentDateOfReading).toLocaleDateString()}
+                        </td>
+                        <td className="px-3 py-2 text-right text-slate-300">
+                          {row.currentUnitReading.toFixed(2)}
+                        </td>
+                        <td className="px-3 py-2 text-right text-slate-300">
+                          {row.usage === null ? 'N/A (first)' : row.usage.toFixed(2)}
+                        </td>
+                        <td className="px-3 py-2 text-right text-white">{formatMoney(row.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

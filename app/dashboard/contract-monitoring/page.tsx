@@ -37,6 +37,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react'
 
 const START_YEAR = 2026
+const CONTRACT_MONITORING_YEAR_STORAGE_KEY = 'contract_monitoring_current_year'
 
 type ContractFormState = {
   unitId: string
@@ -109,6 +110,18 @@ export default function ContractMonitoringPage() {
 
   useEffect(() => {
     loadData()
+  }, [currentYear])
+
+  useEffect(() => {
+    const cached = localStorage.getItem(CONTRACT_MONITORING_YEAR_STORAGE_KEY)
+    if (!cached) return
+    const parsed = Number(cached)
+    if (!Number.isFinite(parsed)) return
+    setCurrentYear(Math.max(START_YEAR, parsed))
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem(CONTRACT_MONITORING_YEAR_STORAGE_KEY, String(currentYear))
   }, [currentYear])
 
   async function loadData() {

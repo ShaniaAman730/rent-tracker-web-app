@@ -51,7 +51,7 @@ function toUpperInitialName(firstName: string, middleName: string, lastName: str
 }
 
 function pageCountText(blockCount: number): string {
-  const estimated = Math.max(1, Math.round(blockCount / 17))
+  const estimated = Math.max(1, Math.ceil(blockCount / 17))
   const words = [
     'one',
     'two',
@@ -196,7 +196,7 @@ function getContractBlocks(data: ContractData): Block[] {
     data.tenantIdIssuedDate,
     data.tenantIdExpiryDate,
     'with expiry date on',
-    'Expiry date on'
+    'with expiry date on'
   )
 
   const clauses: Block[] = [
