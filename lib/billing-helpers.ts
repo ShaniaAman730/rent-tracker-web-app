@@ -31,6 +31,10 @@ export interface BillingDataForExport extends BillingData {
   secondFloorAmount: number
 }
 
+function getNonNegativeUsage(previousReading: number, currentReading: number): number {
+  return Math.max(previousReading - currentReading, 0)
+}
+
 // Calculate usage from two utility readings
 export function calculateBillingData(
   previous: UtilityWithPayment,
@@ -38,8 +42,8 @@ export function calculateBillingData(
   unitName: string,
   preparedBy: string
 ): BillingDataForExport {
-  const firstFloorUsage = current.first_floor_reading - previous.first_floor_reading
-  const secondFloorUsage = current.second_floor_reading - previous.second_floor_reading
+  const firstFloorUsage = getNonNegativeUsage(previous.first_floor_reading, current.first_floor_reading)
+  const secondFloorUsage = getNonNegativeUsage(previous.second_floor_reading, current.second_floor_reading)
   const totalUsage = firstFloorUsage + secondFloorUsage
 
   const firstFloorPercentage = totalUsage > 0 ? (firstFloorUsage / totalUsage) * 100 : 0

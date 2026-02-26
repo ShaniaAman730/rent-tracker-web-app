@@ -333,7 +333,7 @@ export default function ComputeUtilitiesPage() {
               <tbody>
                 {rows.map((utility) => {
                   const previous = getPreviousReading(utility, list)
-                  const usage = previous ? utility.unit_reading - previous.unit_reading : null
+                  const usage = previous ? Math.max(previous.unit_reading - utility.unit_reading, 0) : null
                   return (
                     <tr key={utility.id} className="border-b border-slate-700 hover:bg-slate-700">
                       <td className="px-3 py-2 text-white">{selectedPairLabel}</td>

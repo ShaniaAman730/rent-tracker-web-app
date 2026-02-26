@@ -14,6 +14,9 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
+const tableStyle = 'width:100%; border-collapse:collapse; margin-bottom:16px; border:2px solid #111827;'
+const cellStyle = 'border:1px solid #111827; padding:6px;'
+
 export function buildBillingPreviewElement(data: BillingDataForExport) {
   const wrapper = document.createElement('div')
   wrapper.style.width = '1200px'
@@ -29,17 +32,61 @@ export function buildBillingPreviewElement(data: BillingDataForExport) {
         <h2 style="text-align:center; margin:0 0 8px 0;">${data.unitName} (${data.type}) - ${new Date(
           data.currentDate
         ).toLocaleDateString()}</h2>
-        <table style="width:100%; border-collapse:collapse; margin-bottom:16px;" border="1" cellpadding="6">
-          <tr><th>Location</th><th>Current RDG. kw hour</th><th>Previous RDG. kw hour</th><th>Consumption kw hour</th><th>Percentage</th></tr>
-          <tr><td>First Floor</td><td>${data.currentFirstFloor.toFixed(2)}</td><td>${data.previousFirstFloor.toFixed(2)}</td><td>${data.firstFloorUsage.toFixed(2)}</td><td>${data.firstFloorPercentage.toFixed(2)}%</td></tr>
-          <tr><td>Second Floor</td><td>${data.currentSecondFloor.toFixed(2)}</td><td>${data.previousSecondFloor.toFixed(2)}</td><td>${data.secondFloorUsage.toFixed(2)}</td><td>${data.secondFloorPercentage.toFixed(2)}%</td></tr>
-          <tr><td><b>TOTAL</b></td><td></td><td></td><td><b>${data.totalUsage.toFixed(2)}</b></td><td><b>100%</b></td></tr>
+        <table style="${tableStyle}">
+          <tr>
+            <th style="${cellStyle}">Location</th>
+            <th style="${cellStyle}">Current RDG. kw hour</th>
+            <th style="${cellStyle}">Previous RDG. kw hour</th>
+            <th style="${cellStyle}">Consumption kw hour</th>
+            <th style="${cellStyle}">Percentage</th>
+          </tr>
+          <tr>
+            <td style="${cellStyle}">First Floor</td>
+            <td style="${cellStyle}">${data.currentFirstFloor.toFixed(2)}</td>
+            <td style="${cellStyle}">${data.previousFirstFloor.toFixed(2)}</td>
+            <td style="${cellStyle}">${data.firstFloorUsage.toFixed(2)}</td>
+            <td style="${cellStyle}">${data.firstFloorPercentage.toFixed(2)}%</td>
+          </tr>
+          <tr>
+            <td style="${cellStyle}">Second Floor</td>
+            <td style="${cellStyle}">${data.currentSecondFloor.toFixed(2)}</td>
+            <td style="${cellStyle}">${data.previousSecondFloor.toFixed(2)}</td>
+            <td style="${cellStyle}">${data.secondFloorUsage.toFixed(2)}</td>
+            <td style="${cellStyle}">${data.secondFloorPercentage.toFixed(2)}%</td>
+          </tr>
+          <tr>
+            <td style="${cellStyle}"><b>TOTAL</b></td>
+            <td style="${cellStyle}"></td>
+            <td style="${cellStyle}"></td>
+            <td style="${cellStyle}"><b>${data.totalUsage.toFixed(2)}</b></td>
+            <td style="${cellStyle}"><b>100%</b></td>
+          </tr>
         </table>
-        <table style="width:100%; border-collapse:collapse; margin-bottom:12px;" border="1" cellpadding="6">
-          <tr><th>Location</th><th>Total Amount</th><th>Percentage</th><th>Amount per Location</th></tr>
-          <tr><td>First Floor</td><td>${data.amount.toFixed(2)}</td><td>${data.firstFloorPercentage.toFixed(2)}%</td><td>${data.firstFloorAmount.toFixed(2)}</td></tr>
-          <tr><td>Second Floor</td><td>${data.amount.toFixed(2)}</td><td>${data.secondFloorPercentage.toFixed(2)}%</td><td>${data.secondFloorAmount.toFixed(2)}</td></tr>
-          <tr><td><b>TOTAL</b></td><td></td><td></td><td><b>${data.amount.toFixed(2)}</b></td></tr>
+        <table style="${tableStyle.replace('16px', '12px')}">
+          <tr>
+            <th style="${cellStyle}">Location</th>
+            <th style="${cellStyle}">Total Amount</th>
+            <th style="${cellStyle}">Percentage</th>
+            <th style="${cellStyle}">Amount per Location</th>
+          </tr>
+          <tr>
+            <td style="${cellStyle}">First Floor</td>
+            <td style="${cellStyle}">${data.amount.toFixed(2)}</td>
+            <td style="${cellStyle}">${data.firstFloorPercentage.toFixed(2)}%</td>
+            <td style="${cellStyle}">${data.firstFloorAmount.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td style="${cellStyle}">Second Floor</td>
+            <td style="${cellStyle}">${data.amount.toFixed(2)}</td>
+            <td style="${cellStyle}">${data.secondFloorPercentage.toFixed(2)}%</td>
+            <td style="${cellStyle}">${data.secondFloorAmount.toFixed(2)}</td>
+          </tr>
+          <tr>
+            <td style="${cellStyle}"><b>TOTAL</b></td>
+            <td style="${cellStyle}"></td>
+            <td style="${cellStyle}"></td>
+            <td style="${cellStyle}"><b>${data.amount.toFixed(2)}</b></td>
+          </tr>
         </table>
         <p style="margin:4px 0;">Prepared by: ${data.preparedBy}</p>
         <p style="margin:4px 0;">Date: ${new Date().toLocaleDateString()}</p>

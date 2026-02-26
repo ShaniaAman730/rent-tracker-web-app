@@ -144,12 +144,14 @@ export async function createContract(
 }
 
 export async function updateContract(id: string, updates: Partial<Contract>): Promise<Contract> {
+  const payload: Partial<Contract> = { ...updates }
+  if (!Object.prototype.hasOwnProperty.call(updates, 'recorded_date') && updates.recorded_by_user_id) {
+    payload.recorded_date = new Date().toISOString()
+  }
+
   const { data, error } = await supabase
     .from('contract')
-    .update({
-      ...updates,
-      recorded_date: new Date().toISOString(),
-    })
+    .update(payload)
     .eq('id', id)
     .select()
     .single()

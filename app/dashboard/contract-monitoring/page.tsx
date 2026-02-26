@@ -12,7 +12,6 @@ import { getCurrentUser, getUsersMapByIds } from '@/lib/api/users'
 import { generateContractDocument, generateContractPdf } from '@/lib/export/contract-document'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -31,7 +30,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react'
 
 const START_YEAR = 2026
 const LESSOR_NAME = 'ARMANDO L. AMAN'
@@ -88,6 +88,12 @@ export default function ContractMonitoringPage() {
   const [exportingId, setExportingId] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [contractForm, setContractForm] = useState<ContractFormState>(emptyForm)
+  const [signingDialogOpen, setSigningDialogOpen] = useState(false)
+  const [trackingContract, setTrackingContract] = useState<any>(null)
+  const [trackingSigned, setTrackingSigned] = useState<string>('true')
+  const [trackingComments, setTrackingComments] = useState('')
+  const [trackingSaving, setTrackingSaving] = useState(false)
+  const [trackingError, setTrackingError] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
@@ -222,16 +228,50 @@ export default function ContractMonitoringPage() {
     }
   }
 
-  async function handleToggleSigned(contract: any) {
+  function openSigningDialog(contract: any) {
+    setTrackingContract(contract)
+    setTrackingSigned(contract.signed ? 'true' : 'false')
+    setTrackingComments(contract.comments || '')
+    setTrackingError(null)
+    setSigningDialogOpen(true)
+  }
+
+  async function handleRecordSigning() {
+    if (!currentUser?.id || !trackingContract) return
+
+    try {
+      setTrackingSaving(true)
+      setTrackingError(null)
+      await updateContract(trackingContract.id, {
+        signed: trackingSigned === 'true',
+        recorded_by_user_id: currentUser.id,
+        recorded_date: new Date().toISOString(),
+        comments: trackingComments.trim() || null,
+      })
+      setSigningDialogOpen(false)
+      setTrackingContract(null)
+      setTrackingComments('')
+      await loadData()
+    } catch (error) {
+      setTrackingError(error instanceof Error ? error.message : 'Unable to record contract signing.')
+    } finally {
+      setTrackingSaving(false)
+    }
+  }
+
+  async function handleDeleteTracking(contract: any) {
+    if (!confirm('Delete this contract tracking record?')) return
     if (!currentUser?.id) return
     try {
       await updateContract(contract.id, {
-        signed: !contract.signed,
-        recorded_by_user_id: currentUser.id,
+        signed: false,
+        recorded_by_user_id: null,
+        recorded_date: null,
+        comments: null,
       })
       await loadData()
     } catch (error) {
-      console.error('Error updating contract signed state:', error)
+      console.error('Error deleting contract tracking:', error)
     }
   }
 
@@ -372,13 +412,7 @@ export default function ContractMonitoringPage() {
                             </div>
                             <div>
                               <p className="text-slate-400">Signed</p>
-                              <div className="flex items-center gap-2 pt-1">
-                                <Checkbox
-                                  checked={contract.signed}
-                                  onCheckedChange={() => handleToggleSigned(contract)}
-                                />
-                                <span className="text-white">{contract.signed ? 'Yes' : 'No'}</span>
-                              </div>
+                              <p className="text-white">{contract.signed ? 'Yes' : 'No'}</p>
                             </div>
                             <div>
                               <p className="text-slate-400">Recorded By</p>
@@ -401,6 +435,22 @@ export default function ContractMonitoringPage() {
                           </div>
 
                           <div className="flex flex-wrap gap-2">
+                            <Button
+                              onClick={() => openSigningDialog(contract)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                            >
+                              Record Signing
+                            </Button>
+                            {(contract.recorded_by_user_id || contract.recorded_date || contract.comments) && (
+                              <Button
+                                onClick={() => handleDeleteTracking(contract)}
+                                variant="outline"
+                                size="icon"
+                                className="border-red-600/50 text-red-400 hover:bg-red-900/20"
+                              >
+                                <Trash2 size={14} />
+                              </Button>
+                            )}
                             <Button
                               onClick={() => handleExport(contract, property, unit, 'word')}
                               disabled={exportingId === contract.id}
@@ -618,6 +668,89 @@ export default function ContractMonitoringPage() {
             </Button>
             <Button onClick={handleCreateContract} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white">
               {saving ? 'Saving...' : 'Save Contract'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={signingDialogOpen}
+        onOpenChange={(open) => {
+          setSigningDialogOpen(open)
+          if (!open) {
+            setTrackingContract(null)
+            setTrackingError(null)
+          }
+        }}
+      >
+        <DialogContent className="bg-slate-800 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Record Contract Signing</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Update signing status, recorder, and comments.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label className="text-slate-200">Signing Status</Label>
+              <RadioGroup value={trackingSigned} onValueChange={setTrackingSigned}>
+                <div className="flex items-center space-x-2 mt-2">
+                  <RadioGroupItem value="true" id="signed" />
+                  <Label htmlFor="signed" className="font-normal text-slate-300">
+                    Signed
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="false" id="not-signed" />
+                  <Label htmlFor="not-signed" className="font-normal text-slate-300">
+                    Not Signed
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div>
+              <Label className="text-slate-200" htmlFor="contract_tracking_comments">
+                Comments
+              </Label>
+              <Textarea
+                id="contract_tracking_comments"
+                value={trackingComments}
+                onChange={(e) => setTrackingComments(e.target.value)}
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+                placeholder="Optional notes"
+                rows={3}
+              />
+            </div>
+
+            <div className="bg-slate-700 p-3 rounded text-sm text-slate-300">
+              <p>
+                <span className="text-slate-400">Recorded by:</span> {currentUser?.full_name}
+              </p>
+            </div>
+
+            {trackingError && (
+              <div className="p-3 bg-red-900/20 border border-red-700 text-red-200 rounded text-sm">
+                {trackingError}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={() => setSigningDialogOpen(false)}
+              variant="outline"
+              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRecordSigning}
+              disabled={trackingSaving}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {trackingSaving ? 'Recording...' : 'Record Signing'}
             </Button>
           </DialogFooter>
         </DialogContent>
