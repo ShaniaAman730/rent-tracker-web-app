@@ -12,6 +12,7 @@ import {
 } from '@/lib/api/tenants'
 import { getCurrentUser, getUsersMapByIds } from '@/lib/api/users'
 import { generateContractDocument } from '@/lib/export/contract-document'
+import { GOV_ID_TYPE_OPTIONS } from '@/lib/constants/gov-ids'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -46,6 +47,10 @@ type ContractFormState = {
   lastName: string
   citizenship: string
   maritalStatus: string
+  govIdType: string
+  govIdNo: string
+  idIssuedDate: string
+  idExpiryDate: string
   tenantAddress: string
   unitSpecification: string
   propertySpecification: string
@@ -65,6 +70,10 @@ const emptyForm: ContractFormState = {
   lastName: '',
   citizenship: 'Filipino',
   maritalStatus: '',
+  govIdType: '',
+  govIdNo: '',
+  idIssuedDate: '',
+  idExpiryDate: '',
   tenantAddress: '',
   unitSpecification: '',
   propertySpecification: '',
@@ -158,6 +167,10 @@ export default function ContractMonitoringPage() {
       firstName: defaultTenant?.first_name || '',
       lastName: defaultTenant?.last_name || '',
       middleName: '',
+      govIdType: defaultTenant?.gov_id_type || '',
+      govIdNo: defaultTenant?.gov_id_no || '',
+      idIssuedDate: defaultTenant?.id_issued_date || '',
+      idExpiryDate: defaultTenant?.id_expiry_date || '',
     })
     setFormError(null)
     setEditingContractId(null)
@@ -174,6 +187,10 @@ export default function ContractMonitoringPage() {
       lastName: contract.last_name,
       citizenship: contract.citizenship,
       maritalStatus: contract.marital_status,
+      govIdType: contract.gov_id_type || '',
+      govIdNo: contract.gov_id_no || '',
+      idIssuedDate: contract.id_issued_date || '',
+      idExpiryDate: contract.id_expiry_date || '',
       tenantAddress: contract.tenant_address,
       unitSpecification: contract.unit_specification,
       propertySpecification: contract.property_specification,
@@ -195,6 +212,10 @@ export default function ContractMonitoringPage() {
       tenantId,
       firstName: tenant?.first_name || prev.firstName,
       lastName: tenant?.last_name || prev.lastName,
+      govIdType: tenant?.gov_id_type || prev.govIdType,
+      govIdNo: tenant?.gov_id_no || prev.govIdNo,
+      idIssuedDate: tenant?.id_issued_date || prev.idIssuedDate,
+      idExpiryDate: tenant?.id_expiry_date || prev.idExpiryDate,
     }))
   }
 
@@ -208,6 +229,10 @@ export default function ContractMonitoringPage() {
       contractForm.lastName,
       contractForm.citizenship,
       contractForm.maritalStatus,
+      contractForm.govIdType,
+      contractForm.govIdNo,
+      contractForm.idIssuedDate,
+      contractForm.idExpiryDate,
       contractForm.tenantAddress,
       contractForm.unitSpecification,
       contractForm.propertySpecification,
@@ -247,6 +272,10 @@ export default function ContractMonitoringPage() {
           last_name: contractForm.lastName.trim(),
           citizenship: contractForm.citizenship.trim(),
           marital_status: contractForm.maritalStatus.trim(),
+          gov_id_type: contractForm.govIdType.trim() || null,
+          gov_id_no: contractForm.govIdNo.trim() || null,
+          id_issued_date: contractForm.idIssuedDate || null,
+          id_expiry_date: contractForm.idExpiryDate || null,
           tenant_address: contractForm.tenantAddress.trim(),
           unit_specification: contractForm.unitSpecification.trim(),
           property_specification: contractForm.propertySpecification.trim(),
@@ -268,6 +297,10 @@ export default function ContractMonitoringPage() {
           contractForm.lastName.trim(),
           contractForm.citizenship.trim(),
           contractForm.maritalStatus.trim(),
+          contractForm.govIdType.trim() || null,
+          contractForm.govIdNo.trim() || null,
+          contractForm.idIssuedDate || null,
+          contractForm.idExpiryDate || null,
           contractForm.tenantAddress.trim(),
           contractForm.unitSpecification.trim(),
           contractForm.propertySpecification.trim(),
@@ -384,10 +417,10 @@ export default function ContractMonitoringPage() {
         cashBond: Number(contract.cash_bond),
         beginContract: contract.begin_contract,
         endContract: contract.end_contract,
-        tenantGovIdType: tenant?.gov_id_type || '',
-        tenantGovIdNo: tenant?.gov_id_no || '',
-        tenantIdIssuedDate: tenant?.id_issued_date || '',
-        tenantIdExpiryDate: tenant?.id_expiry_date || '',
+        tenantGovIdType: contract.gov_id_type || tenant?.gov_id_type || '',
+        tenantGovIdNo: contract.gov_id_no || tenant?.gov_id_no || '',
+        tenantIdIssuedDate: contract.id_issued_date || tenant?.id_issued_date || '',
+        tenantIdExpiryDate: contract.id_expiry_date || tenant?.id_expiry_date || '',
       }
 
       const fileBase = `${unit.name}-contract-${contract.year}`.replace(/\s+/g, '-')
@@ -665,6 +698,56 @@ export default function ContractMonitoringPage() {
                 <Input
                   value={contractForm.maritalStatus}
                   onChange={(e) => setContractForm((prev) => ({ ...prev, maritalStatus: e.target.value }))}
+                  className="mt-1 bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-slate-200">Government ID Type</Label>
+                <Select
+                  value={contractForm.govIdType}
+                  onValueChange={(value) => setContractForm((prev) => ({ ...prev, govIdType: value }))}
+                >
+                  <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
+                    <SelectValue placeholder="Select ID type" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-700 border-slate-600">
+                    {GOV_ID_TYPE_OPTIONS.map((option) => (
+                      <SelectItem key={option} value={option} className="text-white">
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-slate-200">Government ID Number</Label>
+                <Input
+                  value={contractForm.govIdNo}
+                  onChange={(e) => setContractForm((prev) => ({ ...prev, govIdNo: e.target.value }))}
+                  className="mt-1 bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label className="text-slate-200">ID Issued Date</Label>
+                <Input
+                  type="date"
+                  value={contractForm.idIssuedDate}
+                  onChange={(e) => setContractForm((prev) => ({ ...prev, idIssuedDate: e.target.value }))}
+                  className="mt-1 bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+              <div>
+                <Label className="text-slate-200">ID Expiry Date</Label>
+                <Input
+                  type="date"
+                  value={contractForm.idExpiryDate}
+                  onChange={(e) => setContractForm((prev) => ({ ...prev, idExpiryDate: e.target.value }))}
                   className="mt-1 bg-slate-700 border-slate-600 text-white"
                 />
               </div>

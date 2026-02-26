@@ -72,6 +72,10 @@ export type Contract = {
   last_name: string
   citizenship: string
   marital_status: string
+  gov_id_type: string | null
+  gov_id_no: string | null
+  id_issued_date: string | null
+  id_expiry_date: string | null
   tenant_address: string
   unit_specification: string
   property_specification: string

@@ -52,37 +52,56 @@ export default function LandlordsPage() {
           <p className="text-slate-400">No landlord profile yet. Set up your owner details.</p>
         </Card>
       ) : (
-        <Card className="p-5 border-slate-700 bg-slate-800">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-sm">
-            <div>
-              <p className="text-slate-400">Name</p>
-              <p className="text-white font-semibold">
+        <Card className="p-8 sm:p-10 border-slate-700 bg-slate-800">
+          <div className="space-y-8">
+            <div className="rounded-xl border border-slate-600 bg-slate-700/40 p-6 sm:p-8">
+              <p className="text-slate-400 text-sm uppercase tracking-wide">Owner Name</p>
+              <h2 className="text-3xl sm:text-4xl font-bold text-white mt-2">
                 {landlord.name_prefix ? `${landlord.name_prefix} ` : ''}
                 {landlord.first_name} {landlord.middle_name} {landlord.last_name}
-              </p>
+              </h2>
             </div>
-            <div>
-              <p className="text-slate-400">Citizenship / Marital Status</p>
-              <p className="text-white">
-                {landlord.citizenship} / {landlord.marital_status}
-              </p>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="rounded-xl border border-slate-600 bg-slate-700/40 p-6">
+                <p className="text-slate-400 text-sm mb-2">Personal Information</p>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-slate-400 text-xs">Citizenship</p>
+                    <p className="text-white text-lg">{landlord.citizenship}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 text-xs">Marital Status</p>
+                    <p className="text-white text-lg">{landlord.marital_status}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-600 bg-slate-700/40 p-6">
+                <p className="text-slate-400 text-sm mb-2">Government ID</p>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-slate-400 text-xs">ID Type</p>
+                    <p className="text-white text-lg">{landlord.gov_id_type}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 text-xs">ID Number</p>
+                    <p className="text-white text-lg">{landlord.gov_id_no}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 text-xs">Issued / Expiry</p>
+                    <p className="text-white text-lg">
+                      {new Date(landlord.id_issued_date).toLocaleDateString()} /{' '}
+                      {new Date(landlord.id_expiry_date).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <p className="text-slate-400">Gov ID</p>
-              <p className="text-white">
-                {landlord.gov_id_type} - {landlord.gov_id_no}
-              </p>
-            </div>
-            <div>
-              <p className="text-slate-400">ID Issued / Expiry</p>
-              <p className="text-white">
-                {new Date(landlord.id_issued_date).toLocaleDateString()} /{' '}
-                {new Date(landlord.id_expiry_date).toLocaleDateString()}
-              </p>
-            </div>
-            <div className="md:col-span-2 xl:col-span-4">
-              <p className="text-slate-400">Postal Address</p>
-              <p className="text-white">{landlord.postal_address}</p>
+
+            <div className="rounded-xl border border-slate-600 bg-slate-700/40 p-6">
+              <p className="text-slate-400 text-sm mb-2">Postal Address</p>
+              <p className="text-white text-lg leading-relaxed">{landlord.postal_address}</p>
             </div>
           </div>
         </Card>

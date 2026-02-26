@@ -23,7 +23,7 @@ import {
 import { AddUtilityDialog } from '@/components/dialogs/add-utility-dialog'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Plus, Download, Edit, Trash2 } from 'lucide-react'
+import { Plus, Download, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -41,6 +41,12 @@ import {
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 type UtilityType = 'MNWD' | 'Casureco'
 type ExportType = 'word' | 'pdf' | 'png' | 'excel'
@@ -89,17 +95,12 @@ export default function ComputeUtilitiesPage() {
 
   const [mnwdUtilities, setMnwdUtilities] = useState<any[]>([])
   const [casurecoUtilities, setCasurecoUtilities] = useState<any[]>([])
-  const [allUtilities, setAllUtilities] = useState<any[]>([])
 
   const [formOpen, setFormOpen] = useState(false)
   const [editingUtility, setEditingUtility] = useState<any>(null)
-  const [exportType, setExportType] = useState<ExportType>('word')
-  const [exportUtilityType, setExportUtilityType] = useState<UtilityType>('MNWD')
-  const [selectedExportMonth, setSelectedExportMonth] = useState<number>(new Date().getMonth())
-  const [selectedExportYear, setSelectedExportYear] = useState<number>(new Date().getFullYear())
-  const [selectedExportUtilityId, setSelectedExportUtilityId] = useState<string>('')
+  const [trackerDate, setTrackerDate] = useState(new Date())
   const [viewingComputation, setViewingComputation] = useState<any>(null)
-  const [exporting, setExporting] = useState(false)
+  const [exportingUtilityId, setExportingUtilityId] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
@@ -121,7 +122,6 @@ export default function ComputeUtilitiesPage() {
       setCurrentUser(user)
       setProperties(props)
       setPairings(pairingsData)
-      await loadAllUtilities(pairingsData)
 
       if (pairingsData.length > 0) {
         setSelectedPairingId(pairingsData[0].id)
@@ -130,25 +130,6 @@ export default function ComputeUtilitiesPage() {
       console.error('Error loading compute utilities data:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function loadAllUtilities(pairingsData: any[]) {
-    if (pairingsData.length === 0) {
-      setAllUtilities([])
-      return
-    }
-
-    try {
-      const utilities = await getUtilitiesWithPaymentsForPairings(pairingsData.map((pair: any) => pair.id))
-      setAllUtilities(
-        utilities.sort(
-          (a: any, b: any) =>
-            new Date(b.date_of_reading).getTime() - new Date(a.date_of_reading).getTime()
-        )
-      )
-    } catch (error) {
-      console.error('Error loading utilities for export:', error)
     }
   }
 
@@ -232,57 +213,11 @@ export default function ComputeUtilitiesPage() {
       )[0]
   }
 
-  const exportableUtilities = useMemo(() => {
-    const grouped = new Map<string, any[]>()
-    const filteredByMonthYear = allUtilities
-      .filter((item) => item.type === exportUtilityType)
-      .filter((item) => {
-        const readingDate = new Date(item.date_of_reading)
-        return (
-          readingDate.getMonth() === selectedExportMonth &&
-          readingDate.getFullYear() === selectedExportYear
-        )
-      })
+  const trackerMonth = trackerDate.getMonth()
+  const trackerYear = trackerDate.getFullYear()
 
-    for (const utility of filteredByMonthYear) {
-      const key = `${utility.pairing_id}-${utility.type}`
-      if (!grouped.has(key)) {
-        grouped.set(key, [])
-      }
-      grouped.get(key)!.push(utility)
-    }
-
-    const options: any[] = []
-    for (const utilities of grouped.values()) {
-      const sorted = [...utilities].sort(
-        (a, b) => new Date(b.date_of_reading).getTime() - new Date(a.date_of_reading).getTime()
-      )
-      for (const utility of sorted) {
-        const previous = getPreviousReading(utility, sorted)
-        if (!previous) continue
-        options.push({
-          utility,
-          previous,
-        })
-      }
-    }
-
-    return options.sort(
-      (a, b) =>
-        new Date(b.utility.date_of_reading).getTime() - new Date(a.utility.date_of_reading).getTime()
-    )
-  }, [allUtilities, exportUtilityType, selectedExportMonth, selectedExportYear])
-
-  useEffect(() => {
-    if (exportableUtilities.length === 0) {
-      setSelectedExportUtilityId('')
-      return
-    }
-
-    if (!exportableUtilities.find((entry) => entry.utility.id === selectedExportUtilityId)) {
-      setSelectedExportUtilityId(exportableUtilities[0].utility.id)
-    }
-  }, [exportableUtilities, selectedExportUtilityId])
+  const previousMonth = () => setTrackerDate(new Date(trackerYear, trackerMonth - 1, 1))
+  const nextMonth = () => setTrackerDate(new Date(trackerYear, trackerMonth + 1, 1))
 
   async function handleAddPairing() {
     if (!newFirstUnitId || !newSecondUnitId) {
@@ -327,27 +262,26 @@ export default function ComputeUtilitiesPage() {
       if (selectedPairingId) {
         await loadUtilitiesForSelectedPairing(selectedPairingId)
       }
-      await loadAllUtilities(pairings)
     } catch (error) {
       console.error('Error deleting utility record:', error)
       alert('Unable to delete utility record.')
     }
   }
 
-  async function handleGenerateBilling() {
+  async function handleGenerateBillingForUtility(
+    utility: any,
+    list: any[],
+    exportType: ExportType
+  ) {
     if (!currentUser) return
 
-    const selected = exportableUtilities.find(
-      (entry) => entry.utility.id === selectedExportUtilityId
-    )
-    if (!selected) {
-      alert('Select a reading with a valid previous reference first.')
+    const previous = getPreviousReading(utility, list)
+    if (!previous) {
+      alert('No previous reading reference found for this record.')
       return
     }
 
-    const current = selected.utility
-    const previous = selected.previous
-    const selectedPair = pairings.find((pair) => pair.id === current.pairing_id)
+    const selectedPair = pairings.find((pair) => pair.id === utility.pairing_id)
     const firstUnit = selectedPair ? unitsById.get(selectedPair.first_unit_id) : null
     const secondUnit = selectedPair ? unitsById.get(selectedPair.second_unit_id) : null
     const pairLabel =
@@ -355,21 +289,13 @@ export default function ComputeUtilitiesPage() {
         ? getPairLabel(firstUnit, secondUnit)
         : selectedPairLabel
 
-    const billingData = calculateBillingData(
-      previous,
-      current,
-      pairLabel,
-      currentUser.full_name
-    )
-
-    const fileBase = `${pairLabel}-${exportUtilityType}-${new Date(
-      current.currentDate || current.date_of_reading
-    )
+    const billingData = calculateBillingData(previous, utility, pairLabel, currentUser.full_name)
+    const fileBase = `${pairLabel}-${utility.type}-${new Date(utility.date_of_reading)
       .toISOString()
       .slice(0, 10)}`
 
     try {
-      setExporting(true)
+      setExportingUtilityId(utility.id)
       if (exportType === 'word') {
         const docBlob = await generateBillingDocument(billingData)
         const url = URL.createObjectURL(docBlob)
@@ -398,7 +324,7 @@ export default function ComputeUtilitiesPage() {
       console.error('Error generating billing:', error)
       alert('Unable to generate billing.')
     } finally {
-      setExporting(false)
+      setExportingUtilityId(null)
     }
   }
 
@@ -415,7 +341,6 @@ export default function ComputeUtilitiesPage() {
     if (selectedPairingId) {
       await loadUtilitiesForSelectedPairing(selectedPairingId)
     }
-    await loadAllUtilities(pairings)
   }
 
   const renderTrackerTable = (
@@ -424,7 +349,11 @@ export default function ComputeUtilitiesPage() {
     showAll: boolean,
     onToggle: (value: boolean) => void
   ) => {
-    const rows = showAll ? list : list.slice(0, 7)
+    const monthRows = list.filter((utility) => {
+      const d = new Date(utility.date_of_reading)
+      return d.getMonth() === trackerMonth && d.getFullYear() === trackerYear
+    })
+    const rows = showAll ? monthRows : monthRows.slice(0, 7)
 
     return (
       <Card className="p-6 border-slate-700 bg-slate-800">
@@ -510,6 +439,33 @@ export default function ComputeUtilitiesPage() {
                           >
                             View
                           </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                                disabled={exportingUtilityId === utility.id}
+                              >
+                                <Download size={14} className="mr-1" />
+                                {exportingUtilityId === utility.id ? 'Exporting...' : 'Export'}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="bg-slate-700 border-slate-600 text-white">
+                              <DropdownMenuItem onClick={() => handleGenerateBillingForUtility(utility, list, 'word')}>
+                                Word (.docx)
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleGenerateBillingForUtility(utility, list, 'pdf')}>
+                                PDF (.pdf)
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleGenerateBillingForUtility(utility, list, 'png')}>
+                                PNG (.png)
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleGenerateBillingForUtility(utility, list, 'excel')}>
+                                Excel (.xlsx)
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                           <Button
                             size="icon"
                             variant="outline"
@@ -557,19 +513,6 @@ export default function ComputeUtilitiesPage() {
       }
     })
     .filter(Boolean) as { id: string; label: string }[]
-
-  const exportReadingOptions = exportableUtilities.map((entry) => {
-    const pair = pairings.find((item) => item.id === entry.utility.pairing_id)
-    const first = pair ? unitsById.get(pair.first_unit_id) : null
-    const second = pair ? unitsById.get(pair.second_unit_id) : null
-    const pairLabel =
-      first && second ? getPairLabel(first, second) : `Pair ${entry.utility.pairing_id || ''}`
-
-    return {
-      value: entry.utility.id,
-      label: `${pairLabel} - ${entry.utility.type} - ${new Date(entry.utility.date_of_reading).toLocaleDateString()}`,
-    }
-  })
 
   const viewingBillingData =
     viewingComputation?.previous && currentUser
@@ -664,113 +607,56 @@ export default function ComputeUtilitiesPage() {
 
       {selectedPairing ? (
         <>
-          {renderTrackerTable('MNWD Tracker', mnwdUtilities, showAllMnwd, setShowAllMnwd)}
-          {renderTrackerTable('Casureco Tracker', casurecoUtilities, showAllCasureco, setShowAllCasureco)}
-
-          <Card className="p-6 border-slate-700 bg-slate-800">
-            <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
-              <div>
-                <Label className="text-slate-200">Utility Type</Label>
-                <Select
-                  value={exportUtilityType}
-                  onValueChange={(value: UtilityType) => setExportUtilityType(value)}
-                >
-                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-700 border-slate-600">
-                    <SelectItem value="MNWD" className="text-white">
-                      MNWD
+          <Card className="p-4 border-slate-700 bg-slate-800">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <Label className="text-slate-200 mr-2">Tracker Month/Year</Label>
+              <Button
+                onClick={previousMonth}
+                variant="outline"
+                size="sm"
+                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              >
+                <ChevronLeft size={16} />
+              </Button>
+              <span className="text-base sm:text-lg font-semibold text-white min-w-40 text-center">
+                {trackerDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+              </span>
+              <Button
+                onClick={nextMonth}
+                variant="outline"
+                size="sm"
+                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              >
+                <ChevronRight size={16} />
+              </Button>
+              <Select
+                value={String(trackerMonth)}
+                onValueChange={(month) => setTrackerDate(new Date(trackerYear, Number(month), 1))}
+              >
+                <SelectTrigger className="w-36 bg-slate-700 border-slate-600 text-white">
+                  <SelectValue placeholder="Month" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-700 border-slate-600">
+                  {MONTH_OPTIONS.map((month) => (
+                    <SelectItem key={month.value} value={String(month.value)} className="text-white">
+                      {month.label}
                     </SelectItem>
-                    <SelectItem value="Casureco" className="text-white">
-                      Casureco
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-slate-200">Month</Label>
-                <Select value={String(selectedExportMonth)} onValueChange={(value) => setSelectedExportMonth(Number(value))}>
-                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-700 border-slate-600">
-                    {MONTH_OPTIONS.map((month) => (
-                      <SelectItem key={month.value} value={String(month.value)} className="text-white">
-                        {month.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-slate-200">Year</Label>
-                <Input
-                  type="number"
-                  value={selectedExportYear}
-                  onChange={(e) => setSelectedExportYear(Number(e.target.value) || new Date().getFullYear())}
-                  className="bg-slate-700 border-slate-600 text-white mt-1"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <Label className="text-slate-200">Reading Record</Label>
-                <Select value={selectedExportUtilityId} onValueChange={setSelectedExportUtilityId}>
-                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
-                    <SelectValue placeholder="Select a reading with previous reference" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-700 border-slate-600">
-                    {exportReadingOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value} className="text-white">
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-slate-200">Export Format</Label>
-                <Select value={exportType} onValueChange={(value: ExportType) => setExportType(value)}>
-                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-700 border-slate-600">
-                    <SelectItem value="word" className="text-white">
-                      Word (.docx)
-                    </SelectItem>
-                    <SelectItem value="pdf" className="text-white">
-                      PDF (.pdf)
-                    </SelectItem>
-                    <SelectItem value="png" className="text-white">
-                      PNG (.png)
-                    </SelectItem>
-                    <SelectItem value="excel" className="text-white">
-                      Excel (.xlsx)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Button
-                  onClick={handleGenerateBilling}
-                  disabled={exporting || !selectedExportUtilityId}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Download size={16} className="mr-2" />
-                  {exporting ? 'Generating...' : 'Generate Billing'}
-                </Button>
-                {exportReadingOptions.length === 0 && (
-                  <p className="text-xs text-amber-300 mt-2">
-                    No exportable readings found for this utility type yet.
-                  </p>
-                )}
-              </div>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                value={trackerYear}
+                onChange={(e) =>
+                  setTrackerDate(new Date(Number(e.target.value) || trackerYear, trackerMonth, 1))
+                }
+                className="w-24 bg-slate-700 border-slate-600 text-white"
+              />
             </div>
           </Card>
+
+          {renderTrackerTable('MNWD Tracker', mnwdUtilities, showAllMnwd, setShowAllMnwd)}
+          {renderTrackerTable('Casureco Tracker', casurecoUtilities, showAllCasureco, setShowAllCasureco)}
         </>
       ) : (
         <Card className="p-8 border-slate-700 bg-slate-800 text-center">
