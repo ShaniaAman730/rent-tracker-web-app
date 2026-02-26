@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea'
 
 interface UtilityPaymentDialogProps {
   utility: Utility & { payment?: any }
+  unit: { id: string; name: string }
   currentUser: any
   onClose: () => void
   onPaymentRecorded: () => void
@@ -25,12 +26,14 @@ interface UtilityPaymentDialogProps {
 
 export function UtilityPaymentDialog({
   utility,
+  unit,
   currentUser,
   onClose,
   onPaymentRecorded,
 }: UtilityPaymentDialogProps) {
-  const [paid, setPaid] = useState<string>(utility.payment?.paid ? 'true' : 'false')
-  const [comments, setComments] = useState(utility.payment?.comments || '')
+  const existingPayment = (utility as any).payments?.find((payment: any) => payment.unit_id === unit.id)
+  const [paid, setPaid] = useState<string>(existingPayment?.paid ? 'true' : 'false')
+  const [comments, setComments] = useState(existingPayment?.comments || '')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -39,7 +42,13 @@ export function UtilityPaymentDialog({
       setLoading(true)
       setError(null)
 
-      await recordUtilityPayment(utility.id, paid === 'true', currentUser.id, comments.trim() || null)
+      await recordUtilityPayment(
+        utility.id,
+        unit.id,
+        paid === 'true',
+        currentUser.id,
+        comments.trim() || null
+      )
 
       onPaymentRecorded()
     } catch (err) {
@@ -55,7 +64,7 @@ export function UtilityPaymentDialog({
         <DialogHeader>
           <DialogTitle className="text-white">Record Utility Payment</DialogTitle>
           <DialogDescription className="text-slate-400">
-            {utility.type} - Due: {new Date(utility.due_date).toLocaleDateString()}
+            {utility.type} - {unit.name} - Due: {new Date(utility.due_date).toLocaleDateString()}
           </DialogDescription>
         </DialogHeader>
 

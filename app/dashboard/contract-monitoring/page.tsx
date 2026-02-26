@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { getPropertiesWithUnits } from '@/lib/api/properties'
 import {
   createContract,
+  deleteContract,
   getAllTenants,
   getContractsByYear,
   updateContract,
 } from '@/lib/api/tenants'
 import { getCurrentUser, getUsersMapByIds } from '@/lib/api/users'
-import { generateContractDocument, generateContractPdf } from '@/lib/export/contract-document'
+import { generateContractDocument } from '@/lib/export/contract-document'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -87,6 +88,7 @@ export default function ContractMonitoringPage() {
   const [saving, setSaving] = useState(false)
   const [exportingId, setExportingId] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const [editingContractId, setEditingContractId] = useState<string | null>(null)
   const [contractForm, setContractForm] = useState<ContractFormState>(emptyForm)
   const [signingDialogOpen, setSigningDialogOpen] = useState(false)
   const [trackingContract, setTrackingContract] = useState<any>(null)
@@ -153,6 +155,31 @@ export default function ContractMonitoringPage() {
       middleName: '',
     })
     setFormError(null)
+    setEditingContractId(null)
+    setDialogOpen(true)
+  }
+
+  function openEditDialog(contract: any) {
+    setContractForm({
+      unitId: contract.unit_id,
+      tenantId: contract.tenant_id,
+      year: String(contract.year),
+      firstName: contract.first_name,
+      middleName: contract.middle_name,
+      lastName: contract.last_name,
+      citizenship: contract.citizenship,
+      maritalStatus: contract.marital_status,
+      tenantAddress: contract.tenant_address,
+      unitSpecification: contract.unit_specification,
+      propertySpecification: contract.property_specification,
+      rent: String(contract.rent),
+      cashBond: String(contract.cash_bond),
+      beginContract: contract.begin_contract,
+      endContract: contract.end_contract,
+      comments: contract.comments || '',
+    })
+    setFormError(null)
+    setEditingContractId(contract.id)
     setDialogOpen(true)
   }
 
@@ -188,7 +215,7 @@ export default function ContractMonitoringPage() {
     return required.every((value) => value.trim().length > 0)
   }
 
-  async function handleCreateContract() {
+  async function handleSaveContract() {
     if (!currentUser?.id) return
     setFormError(null)
 
@@ -199,27 +226,49 @@ export default function ContractMonitoringPage() {
 
     try {
       setSaving(true)
-      await createContract(
-        contractForm.unitId,
-        contractForm.tenantId,
-        Number(contractForm.year),
-        contractForm.firstName.trim(),
-        contractForm.middleName.trim(),
-        contractForm.lastName.trim(),
-        contractForm.citizenship.trim(),
-        contractForm.maritalStatus.trim(),
-        contractForm.tenantAddress.trim(),
-        contractForm.unitSpecification.trim(),
-        contractForm.propertySpecification.trim(),
-        Number(contractForm.rent),
-        Number(contractForm.cashBond),
-        contractForm.beginContract,
-        contractForm.endContract,
-        false,
-        currentUser.id,
-        contractForm.comments.trim() || null
-      )
+      if (editingContractId) {
+        await updateContract(editingContractId, {
+          tenant_id: contractForm.tenantId,
+          year: Number(contractForm.year),
+          first_name: contractForm.firstName.trim(),
+          middle_name: contractForm.middleName.trim(),
+          last_name: contractForm.lastName.trim(),
+          citizenship: contractForm.citizenship.trim(),
+          marital_status: contractForm.maritalStatus.trim(),
+          tenant_address: contractForm.tenantAddress.trim(),
+          unit_specification: contractForm.unitSpecification.trim(),
+          property_specification: contractForm.propertySpecification.trim(),
+          rent: Number(contractForm.rent),
+          cash_bond: Number(contractForm.cashBond),
+          begin_contract: contractForm.beginContract,
+          end_contract: contractForm.endContract,
+          comments: contractForm.comments.trim() || null,
+          recorded_by_user_id: currentUser.id,
+        })
+      } else {
+        await createContract(
+          contractForm.unitId,
+          contractForm.tenantId,
+          Number(contractForm.year),
+          contractForm.firstName.trim(),
+          contractForm.middleName.trim(),
+          contractForm.lastName.trim(),
+          contractForm.citizenship.trim(),
+          contractForm.maritalStatus.trim(),
+          contractForm.tenantAddress.trim(),
+          contractForm.unitSpecification.trim(),
+          contractForm.propertySpecification.trim(),
+          Number(contractForm.rent),
+          Number(contractForm.cashBond),
+          contractForm.beginContract,
+          contractForm.endContract,
+          false,
+          currentUser.id,
+          contractForm.comments.trim() || null
+        )
+      }
       setDialogOpen(false)
+      setEditingContractId(null)
       await loadData()
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Unable to save contract.')
@@ -275,7 +324,18 @@ export default function ContractMonitoringPage() {
     }
   }
 
-  async function handleExport(contract: any, property: any, unit: any, type: 'word' | 'pdf') {
+  async function handleDeleteContract(contractId: string) {
+    if (!confirm('Delete this contract record?')) return
+    try {
+      await deleteContract(contractId)
+      await loadData()
+    } catch (error) {
+      console.error('Error deleting contract:', error)
+      alert('Unable to delete contract.')
+    }
+  }
+
+  async function handleExport(contract: any, property: any, unit: any) {
     try {
       setExportingId(contract.id)
       const payload = {
@@ -298,24 +358,11 @@ export default function ContractMonitoringPage() {
 
       const fileBase = `${unit.name}-contract-${contract.year}`.replace(/\s+/g, '-')
 
-      if (type === 'word') {
-        const blob = await generateContractDocument(payload)
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${fileBase}.docx`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-        return
-      }
-
-      const pdfBlob = await generateContractPdf(payload)
-      const url = URL.createObjectURL(pdfBlob)
+      const blob = await generateContractDocument(payload)
+      const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${fileBase}.pdf`
+      a.download = `${fileBase}.docx`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -379,9 +426,15 @@ export default function ContractMonitoringPage() {
                           <h3 className="text-lg font-medium text-white">{unit.name}</h3>
                           <p className="text-sm text-slate-400">Property: {property.name}</p>
                         </div>
-                        <Button onClick={() => openCreateDialog(unit)} className="bg-blue-600 hover:bg-blue-700 text-white">
-                          Add Contract
-                        </Button>
+                        {!contract ? (
+                          <Button onClick={() => openCreateDialog(unit)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                            Add Contract
+                          </Button>
+                        ) : (
+                          <Button onClick={() => openEditDialog(contract)} className="bg-blue-600 hover:bg-blue-700 text-white">
+                            Edit Contract
+                          </Button>
+                        )}
                       </div>
 
                       {!contract ? (
@@ -452,7 +505,7 @@ export default function ContractMonitoringPage() {
                               </Button>
                             )}
                             <Button
-                              onClick={() => handleExport(contract, property, unit, 'word')}
+                              onClick={() => handleExport(contract, property, unit)}
                               disabled={exportingId === contract.id}
                               className="bg-green-600 hover:bg-green-700 text-white"
                             >
@@ -460,13 +513,12 @@ export default function ContractMonitoringPage() {
                               Export Word
                             </Button>
                             <Button
-                              onClick={() => handleExport(contract, property, unit, 'pdf')}
-                              disabled={exportingId === contract.id}
+                              onClick={() => handleDeleteContract(contract.id)}
                               variant="outline"
-                              className="border-slate-500 text-slate-100 hover:bg-slate-600"
+                              className="border-red-600/50 text-red-400 hover:bg-red-900/20"
                             >
-                              <Download size={14} className="mr-2" />
-                              Export PDF
+                              <Trash2 size={14} className="mr-2" />
+                              Delete Contract
                             </Button>
                           </div>
                         </div>
@@ -480,10 +532,18 @@ export default function ContractMonitoringPage() {
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open)
+          if (!open) {
+            setEditingContractId(null)
+          }
+        }}
+      >
         <DialogContent className="max-w-3xl bg-slate-800 border-slate-700">
           <DialogHeader>
-            <DialogTitle className="text-white">Add Contract</DialogTitle>
+            <DialogTitle className="text-white">{editingContractId ? 'Edit Contract' : 'Add Contract'}</DialogTitle>
             <DialogDescription className="text-slate-400">
               Fill in all required fields to save and generate a contract.
             </DialogDescription>
@@ -666,8 +726,8 @@ export default function ContractMonitoringPage() {
             >
               Cancel
             </Button>
-            <Button onClick={handleCreateContract} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white">
-              {saving ? 'Saving...' : 'Save Contract'}
+            <Button onClick={handleSaveContract} disabled={saving} className="bg-blue-600 hover:bg-blue-700 text-white">
+              {saving ? 'Saving...' : editingContractId ? 'Save Changes' : 'Save Contract'}
             </Button>
           </DialogFooter>
         </DialogContent>

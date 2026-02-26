@@ -25,6 +25,13 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Plus, Download, Edit, Trash2 } from 'lucide-react'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -56,11 +63,14 @@ export default function ComputeUtilitiesPage() {
 
   const [mnwdUtilities, setMnwdUtilities] = useState<any[]>([])
   const [casurecoUtilities, setCasurecoUtilities] = useState<any[]>([])
+  const [allUtilities, setAllUtilities] = useState<any[]>([])
 
   const [formOpen, setFormOpen] = useState(false)
   const [editingUtility, setEditingUtility] = useState<any>(null)
   const [exportType, setExportType] = useState<ExportType>('word')
   const [exportUtilityType, setExportUtilityType] = useState<UtilityType>('MNWD')
+  const [selectedExportUtilityId, setSelectedExportUtilityId] = useState<string>('')
+  const [viewingComputation, setViewingComputation] = useState<any>(null)
   const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
@@ -83,6 +93,7 @@ export default function ComputeUtilitiesPage() {
       setCurrentUser(user)
       setProperties(props)
       setPairings(pairingsData)
+      await loadAllUtilities(pairingsData)
 
       if (pairingsData.length > 0) {
         setSelectedPairingId(pairingsData[0].id)
@@ -91,6 +102,25 @@ export default function ComputeUtilitiesPage() {
       console.error('Error loading compute utilities data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadAllUtilities(pairingsData: any[]) {
+    if (pairingsData.length === 0) {
+      setAllUtilities([])
+      return
+    }
+
+    try {
+      const utilities = await getUtilitiesWithPaymentsForPairings(pairingsData.map((pair: any) => pair.id))
+      setAllUtilities(
+        utilities.sort(
+          (a: any, b: any) =>
+            new Date(b.date_of_reading).getTime() - new Date(a.date_of_reading).getTime()
+        )
+      )
+    } catch (error) {
+      console.error('Error loading utilities for export:', error)
     }
   }
 
@@ -158,12 +188,58 @@ export default function ComputeUtilitiesPage() {
   }
 
   const getPreviousReading = (utility: any, list: any[]) => {
-    return list.find(
-      (candidate) =>
-        candidate.id !== utility.id &&
-        new Date(candidate.date_of_reading).getTime() < new Date(utility.date_of_reading).getTime()
-    )
+    return [...list]
+      .filter(
+        (candidate) =>
+          candidate.id !== utility.id &&
+          new Date(candidate.date_of_reading).getTime() < new Date(utility.date_of_reading).getTime()
+      )
+      .sort(
+        (a, b) => new Date(b.date_of_reading).getTime() - new Date(a.date_of_reading).getTime()
+      )[0]
   }
+
+  const exportableUtilities = useMemo(() => {
+    const grouped = new Map<string, any[]>()
+    for (const utility of allUtilities.filter((item) => item.type === exportUtilityType)) {
+      const key = `${utility.pairing_id}-${utility.type}`
+      if (!grouped.has(key)) {
+        grouped.set(key, [])
+      }
+      grouped.get(key)!.push(utility)
+    }
+
+    const options: any[] = []
+    for (const utilities of grouped.values()) {
+      const sorted = [...utilities].sort(
+        (a, b) => new Date(b.date_of_reading).getTime() - new Date(a.date_of_reading).getTime()
+      )
+      for (const utility of sorted) {
+        const previous = getPreviousReading(utility, sorted)
+        if (!previous) continue
+        options.push({
+          utility,
+          previous,
+        })
+      }
+    }
+
+    return options.sort(
+      (a, b) =>
+        new Date(b.utility.date_of_reading).getTime() - new Date(a.utility.date_of_reading).getTime()
+    )
+  }, [allUtilities, exportUtilityType])
+
+  useEffect(() => {
+    if (exportableUtilities.length === 0) {
+      setSelectedExportUtilityId('')
+      return
+    }
+
+    if (!exportableUtilities.find((entry) => entry.utility.id === selectedExportUtilityId)) {
+      setSelectedExportUtilityId(exportableUtilities[0].utility.id)
+    }
+  }, [exportableUtilities, selectedExportUtilityId])
 
   async function handleAddPairing() {
     if (!newFirstUnitId || !newSecondUnitId) {
@@ -206,6 +282,7 @@ export default function ComputeUtilitiesPage() {
     try {
       await deleteUtility(utilityId)
       await loadUtilitiesForSelectedPairing()
+      await loadAllUtilities(pairings)
     } catch (error) {
       console.error('Error deleting utility record:', error)
       alert('Unable to delete utility record.')
@@ -213,29 +290,34 @@ export default function ComputeUtilitiesPage() {
   }
 
   async function handleGenerateBilling() {
-    if (!selectedPairing || !currentUser) return
+    if (!currentUser) return
 
-    const list = exportUtilityType === 'MNWD' ? mnwdUtilities : casurecoUtilities
-    if (list.length < 2) {
-      alert('First entry has no previous reading. Add another month before exporting.')
+    const selected = exportableUtilities.find(
+      (entry) => entry.utility.id === selectedExportUtilityId
+    )
+    if (!selected) {
+      alert('Select a reading with a valid previous reference first.')
       return
     }
 
-    const current = list[0]
-    const previous = list[1]
-    if (!previous) {
-      alert('Previous reading not found.')
-      return
-    }
+    const current = selected.utility
+    const previous = selected.previous
+    const selectedPair = pairings.find((pair) => pair.id === current.pairing_id)
+    const firstUnit = selectedPair ? unitsById.get(selectedPair.first_unit_id) : null
+    const secondUnit = selectedPair ? unitsById.get(selectedPair.second_unit_id) : null
+    const pairLabel =
+      firstUnit && secondUnit
+        ? `${firstUnit.name} (First Floor) + ${secondUnit.name} (Second Floor)`
+        : selectedPairLabel
 
     const billingData = calculateBillingData(
       previous,
       current,
-      selectedPairLabel,
+      pairLabel,
       currentUser.full_name
     )
 
-    const fileBase = `${selectedPairLabel}-${exportUtilityType}-${new Date(
+    const fileBase = `${pairLabel}-${exportUtilityType}-${new Date(
       current.currentDate || current.date_of_reading
     )
       .toISOString()
@@ -286,6 +368,7 @@ export default function ComputeUtilitiesPage() {
     setEditingUtility(null)
     setFormOpen(false)
     await loadUtilitiesForSelectedPairing()
+    await loadAllUtilities(pairings)
   }
 
   const renderTrackerTable = (
@@ -333,7 +416,7 @@ export default function ComputeUtilitiesPage() {
               <tbody>
                 {rows.map((utility) => {
                   const previous = getPreviousReading(utility, list)
-                  const usage = previous ? Math.max(previous.unit_reading - utility.unit_reading, 0) : null
+                  const usage = previous ? Math.max(utility.unit_reading - previous.unit_reading, 0) : null
                   return (
                     <tr key={utility.id} className="border-b border-slate-700 hover:bg-slate-700">
                       <td className="px-3 py-2 text-white">{selectedPairLabel}</td>
@@ -367,6 +450,14 @@ export default function ComputeUtilitiesPage() {
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center justify-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                            onClick={() => setViewingComputation({ utility, previous, pairLabel: selectedPairLabel })}
+                          >
+                            View
+                          </Button>
                           <Button
                             size="icon"
                             variant="outline"
@@ -414,6 +505,29 @@ export default function ComputeUtilitiesPage() {
       }
     })
     .filter(Boolean) as { id: string; label: string }[]
+
+  const exportReadingOptions = exportableUtilities.map((entry) => {
+    const pair = pairings.find((item) => item.id === entry.utility.pairing_id)
+    const first = pair ? unitsById.get(pair.first_unit_id) : null
+    const second = pair ? unitsById.get(pair.second_unit_id) : null
+    const pairLabel =
+      first && second ? `${first.name} + ${second.name}` : `Pair ${entry.utility.pairing_id || ''}`
+
+    return {
+      value: entry.utility.id,
+      label: `${pairLabel} - ${entry.utility.type} - ${new Date(entry.utility.date_of_reading).toLocaleDateString()}`,
+    }
+  })
+
+  const viewingBillingData =
+    viewingComputation?.previous && currentUser
+      ? calculateBillingData(
+          viewingComputation.previous,
+          viewingComputation.utility,
+          viewingComputation.pairLabel || selectedPairLabel,
+          currentUser.full_name
+        )
+      : null
 
   return (
     <div className="space-y-6">
@@ -502,7 +616,7 @@ export default function ComputeUtilitiesPage() {
           {renderTrackerTable('Casureco Tracker', casurecoUtilities, showAllCasureco, setShowAllCasureco)}
 
           <Card className="p-6 border-slate-700 bg-slate-800">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
               <div>
                 <Label className="text-slate-200">Utility Type</Label>
                 <Select
@@ -519,6 +633,22 @@ export default function ComputeUtilitiesPage() {
                     <SelectItem value="Casureco" className="text-white">
                       Casureco
                     </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="md:col-span-2">
+                <Label className="text-slate-200">Reading Record</Label>
+                <Select value={selectedExportUtilityId} onValueChange={setSelectedExportUtilityId}>
+                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white mt-1">
+                    <SelectValue placeholder="Select a reading with previous reference" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-700 border-slate-600">
+                    {exportReadingOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value} className="text-white">
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -546,18 +676,18 @@ export default function ComputeUtilitiesPage() {
                 </Select>
               </div>
 
-              <div className="md:col-span-2">
+              <div>
                 <Button
                   onClick={handleGenerateBilling}
-                  disabled={exporting}
+                  disabled={exporting || !selectedExportUtilityId}
                   className="w-full bg-green-600 hover:bg-green-700 text-white"
                 >
                   <Download size={16} className="mr-2" />
                   {exporting ? 'Generating...' : 'Generate Billing'}
                 </Button>
-                {((exportUtilityType === 'MNWD' ? mnwdUtilities.length : casurecoUtilities.length) < 2) && (
+                {exportReadingOptions.length === 0 && (
                   <p className="text-xs text-amber-300 mt-2">
-                    First entry for this pair/type cannot be exported until a next monthly reading exists.
+                    No exportable readings found for this utility type yet.
                   </p>
                 )}
               </div>
@@ -569,6 +699,42 @@ export default function ComputeUtilitiesPage() {
           <p className="text-slate-400">Create and select a pairing to compute utilities.</p>
         </Card>
       )}
+
+      <Dialog open={Boolean(viewingComputation)} onOpenChange={() => setViewingComputation(null)}>
+        <DialogContent className="bg-slate-800 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Utility Computation Preview</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              {viewingComputation?.utility?.type} -{' '}
+              {viewingComputation?.utility?.date_of_reading
+                ? new Date(viewingComputation.utility.date_of_reading).toLocaleDateString()
+                : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {!viewingBillingData ? (
+            <p className="text-slate-300 text-sm">
+              This is the first reading for this pair and utility type. A previous reference is required to compute billing.
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div className="rounded border border-slate-600 bg-slate-700 p-3 text-slate-200">
+                <p>Previous Reading Date: {new Date(viewingBillingData.previousDate).toLocaleDateString()}</p>
+                <p>Current Reading Date: {new Date(viewingBillingData.currentDate).toLocaleDateString()}</p>
+                <p>Total Usage: {viewingBillingData.totalUsage.toFixed(2)}</p>
+                <p>Total Amount: {formatMoney(viewingBillingData.amount)}</p>
+              </div>
+              <div className="rounded border border-slate-600 bg-slate-700 p-3 text-slate-200">
+                <p>First Floor Usage: {viewingBillingData.firstFloorUsage.toFixed(2)}</p>
+                <p>First Floor Share: {viewingBillingData.firstFloorPercentage.toFixed(2)}%</p>
+                <p>First Floor Amount: {formatMoney(viewingBillingData.firstFloorAmount)}</p>
+                <p>Second Floor Usage: {viewingBillingData.secondFloorUsage.toFixed(2)}</p>
+                <p>Second Floor Share: {viewingBillingData.secondFloorPercentage.toFixed(2)}%</p>
+                <p>Second Floor Amount: {formatMoney(viewingBillingData.secondFloorAmount)}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AddUtilityDialog
         open={formOpen}

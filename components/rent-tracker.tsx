@@ -9,6 +9,23 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { RentPaymentDialog } from '@/components/dialogs/rent-payment-dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+
+const MONTH_OPTIONS = [
+  { value: 0, label: 'January' },
+  { value: 1, label: 'February' },
+  { value: 2, label: 'March' },
+  { value: 3, label: 'April' },
+  { value: 4, label: 'May' },
+  { value: 5, label: 'June' },
+  { value: 6, label: 'July' },
+  { value: 7, label: 'August' },
+  { value: 8, label: 'September' },
+  { value: 9, label: 'October' },
+  { value: 10, label: 'November' },
+  { value: 11, label: 'December' },
+]
 
 export function RentTracker() {
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -84,6 +101,17 @@ export function RentTracker() {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
   }
 
+  const handleMonthSelect = (month: string) => {
+    setCurrentDate(new Date(currentDate.getFullYear(), Number(month), 1))
+  }
+
+  const handleYearInput = (year: string) => {
+    if (!year) return
+    const parsed = Number(year)
+    if (Number.isNaN(parsed)) return
+    setCurrentDate(new Date(parsed, currentDate.getMonth(), 1))
+  }
+
   const handleDeletePayment = async (paymentId: string) => {
     if (!confirm('Delete this rent payment record?')) return
     try {
@@ -106,7 +134,7 @@ export function RentTracker() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <h1 className="text-2xl sm:text-3xl font-bold text-white">Monthly Rent Tracker</h1>
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Button
             onClick={previousMonth}
             variant="outline"
@@ -124,6 +152,24 @@ export function RentTracker() {
           >
             <ChevronRight size={16} />
           </Button>
+          <Select value={String(currentDate.getMonth())} onValueChange={handleMonthSelect}>
+            <SelectTrigger className="w-36 bg-slate-700 border-slate-600 text-white">
+              <SelectValue placeholder="Month" />
+            </SelectTrigger>
+            <SelectContent className="bg-slate-700 border-slate-600">
+              {MONTH_OPTIONS.map((month) => (
+                <SelectItem key={month.value} value={String(month.value)} className="text-white">
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="number"
+            value={currentDate.getFullYear()}
+            onChange={(e) => handleYearInput(e.target.value)}
+            className="w-24 bg-slate-700 border-slate-600 text-white"
+          />
         </div>
       </div>
 

@@ -30,9 +30,7 @@ export async function getUtilitiesByPairingAndType(
   return data || []
 }
 
-export async function getUtilitiesByType(
-  type: 'MNWD' | 'Casureco'
-): Promise<Utility[]> {
+export async function getUtilitiesByType(type: 'MNWD' | 'Casureco'): Promise<Utility[]> {
   const { data, error } = await supabase
     .from('utility')
     .select('*')
@@ -112,12 +110,7 @@ export async function updateUtility(id: string, updates: Partial<Utility>): Prom
     }
   }
 
-  const { data, error } = await supabase
-    .from('utility')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single()
+  const { data, error } = await supabase.from('utility').update(updates).eq('id', id).select().single()
 
   if (error) throw error
   return data
@@ -130,28 +123,42 @@ export async function deleteUtility(id: string): Promise<void> {
 }
 
 // Utility Payment functions
-export async function getUtilityPayment(utilityId: string): Promise<UtilityPayment | null> {
+export async function getUtilityPayments(utilityId: string): Promise<UtilityPayment[]> {
   const { data, error } = await supabase
     .from('utility_payment')
     .select('*')
     .eq('utility_id', utilityId)
-    .single()
+    .order('created_at', { ascending: false })
 
-  if (error && error.code !== 'PGRST116') throw error
+  if (error) throw error
+  return data || []
+}
+
+export async function getUtilityPaymentByUnit(
+  utilityId: string,
+  unitId: string
+): Promise<UtilityPayment | null> {
+  const { data, error } = await supabase
+    .from('utility_payment')
+    .select('*')
+    .eq('utility_id', utilityId)
+    .eq('unit_id', unitId)
+    .maybeSingle()
+
+  if (error) throw error
   return data || null
 }
 
 export async function recordUtilityPayment(
   utilityId: string,
+  unitId: string,
   paid: boolean,
   recordedByUserId: string,
   comments: string | null
 ): Promise<UtilityPayment> {
-  // Check if payment record exists
-  const existing = await getUtilityPayment(utilityId)
+  const existing = await getUtilityPaymentByUnit(utilityId, unitId)
 
   if (existing) {
-    // Update existing record
     const { data, error } = await supabase
       .from('utility_payment')
       .update({
@@ -166,27 +173,31 @@ export async function recordUtilityPayment(
 
     if (error) throw error
     return data
-  } else {
-    // Create new record
-    const { data, error } = await supabase
-      .from('utility_payment')
-      .insert({
-        utility_id: utilityId,
-        paid,
-        recorded_by_user_id: recordedByUserId,
-        recorded_date: new Date().toISOString(),
-        comments,
-      })
-      .select()
-      .single()
-
-    if (error) throw error
-    return data
   }
+
+  const { data, error } = await supabase
+    .from('utility_payment')
+    .insert({
+      utility_id: utilityId,
+      unit_id: unitId,
+      paid,
+      recorded_by_user_id: recordedByUserId,
+      recorded_date: new Date().toISOString(),
+      comments,
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
 }
 
-export async function deleteUtilityPayment(id: string): Promise<void> {
-  const { error } = await supabase.from('utility_payment').delete().eq('id', id)
+export async function deleteUtilityPayment(utilityId: string, unitId: string): Promise<void> {
+  const { error } = await supabase
+    .from('utility_payment')
+    .delete()
+    .eq('utility_id', utilityId)
+    .eq('unit_id', unitId)
 
   if (error) throw error
 }
@@ -202,10 +213,14 @@ export async function getUtilitiesWithPayments(pairingId: string, type?: 'MNWD' 
   }
 
   const withPayments = await Promise.all(
-    utilities.map(async (utility) => ({
-      ...utility,
-      payment: await getUtilityPayment(utility.id),
-    }))
+    utilities.map(async (utility) => {
+      const payments = await getUtilityPayments(utility.id)
+      return {
+        ...utility,
+        payments,
+        payment: payments[0] || null,
+      }
+    })
   )
 
   return withPayments
@@ -231,29 +246,39 @@ export async function getUtilitiesWithPaymentsForPairings(
   }
 
   const withPayments = await Promise.all(
-    utilities.map(async (utility) => ({
-      ...utility,
-      payment: await getUtilityPayment(utility.id),
-    }))
+    utilities.map(async (utility) => {
+      const payments = await getUtilityPayments(utility.id)
+      return {
+        ...utility,
+        payments,
+        payment: payments[0] || null,
+      }
+    })
   )
 
   return withPayments
 }
 
 export async function touchUtilityPaymentRecorder(utilityId: string, recordedByUserId: string) {
-  const existing = await getUtilityPayment(utilityId)
-  if (!existing) return null
+  const existing = await getUtilityPayments(utilityId)
+  if (existing.length === 0) return []
 
-  const { data, error } = await supabase
-    .from('utility_payment')
-    .update({
-      recorded_by_user_id: recordedByUserId,
-      recorded_date: new Date().toISOString(),
+  const updates = await Promise.all(
+    existing.map(async (payment) => {
+      const { data, error } = await supabase
+        .from('utility_payment')
+        .update({
+          recorded_by_user_id: recordedByUserId,
+          recorded_date: new Date().toISOString(),
+        })
+        .eq('id', payment.id)
+        .select()
+        .single()
+
+      if (error) throw error
+      return data
     })
-    .eq('id', existing.id)
-    .select()
-    .single()
+  )
 
-  if (error) throw error
-  return data
+  return updates
 }

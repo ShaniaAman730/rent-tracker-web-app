@@ -94,6 +94,7 @@ export type Utility = {
 export type UtilityPayment = {
   id: string
   utility_id: string
+  unit_id: string
   paid: boolean
   recorded_by_user_id: string
   recorded_date: string

@@ -1,5 +1,4 @@
 import { AlignmentType, Document, Packer, Paragraph, TextRun } from 'docx'
-import jsPDF from 'jspdf'
 
 export interface ContractData {
   lessorName: string
@@ -220,8 +219,6 @@ function getContractBlocks(data: ContractData): Block[] {
       align: 'justify',
       indentLeft: 900,
       indentHanging: 360,
-      bold: true,
-      italic: true,
     },
     {
       text: '19. The LESSEE shall not be liable for the presence of bugs, ants, anay or insects, if any, in the leased premises. The LESSOR shall not be liable for the failure of water and/or electric current.',
@@ -318,7 +315,6 @@ function getContractBlocks(data: ContractData): Block[] {
       indentFirstLine: 720,
     },
     { text: '' },
-    { text: `                                     (${tenantSignatureName})` },
     { text: ` ENGR. ${data.lessorName}                              ${tenantSignatureName}` },
     { text: '                LESSOR                                                                         LESSEE' },
     { text: '' },
@@ -398,45 +394,4 @@ export async function generateContractDocument(contractData: ContractData): Prom
   })
 
   return Packer.toBlob(document)
-}
-
-export async function generateContractPdf(contractData: ContractData): Promise<Blob> {
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
-  const pageHeight = doc.internal.pageSize.getHeight()
-  const maxWidth = 520
-  const marginX = 40
-  const marginTop = 48
-
-  doc.setFont('times', 'normal')
-  doc.setFontSize(12)
-
-  let y = marginTop
-  const blocks = getContractBlocks(contractData)
-
-  for (const block of blocks) {
-    const x = marginX + (block.indentLeft ? (block.indentLeft / 900) * 14 : 0)
-    const width = Math.max(420, maxWidth - (x - marginX))
-    const lines = doc.splitTextToSize(block.text || ' ', width)
-    const blockHeight = lines.length * 14
-
-    if (y + blockHeight > pageHeight - 40) {
-      doc.addPage()
-      y = marginTop
-    }
-
-    doc.setFont('times', block.bold ? 'bold' : block.italic ? 'italic' : 'normal')
-
-    if (block.align === 'center') {
-      doc.text(lines, doc.internal.pageSize.getWidth() / 2, y, { align: 'center', maxWidth: width })
-    } else if (block.align === 'right') {
-      doc.text(lines, doc.internal.pageSize.getWidth() - marginX, y, { align: 'right', maxWidth: width })
-    } else if (block.align === 'justify') {
-      doc.text(lines, x, y, { align: 'justify', maxWidth: width })
-    } else {
-      doc.text(lines, x, y)
-    }
-    y += blockHeight
-  }
-
-  return doc.output('blob')
 }

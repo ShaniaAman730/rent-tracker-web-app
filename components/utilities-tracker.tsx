@@ -7,8 +7,25 @@ import { getCurrentUser, getUsersMapByIds } from '@/lib/api/users'
 import { getUnitPairings } from '@/lib/api/unit-pairings'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { UtilityPaymentDialog } from '@/components/dialogs/utility-payment-dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+
+const MONTH_OPTIONS = [
+  { value: 0, label: 'January' },
+  { value: 1, label: 'February' },
+  { value: 2, label: 'March' },
+  { value: 3, label: 'April' },
+  { value: 4, label: 'May' },
+  { value: 5, label: 'June' },
+  { value: 6, label: 'July' },
+  { value: 7, label: 'August' },
+  { value: 8, label: 'September' },
+  { value: 9, label: 'October' },
+  { value: 10, label: 'November' },
+  { value: 11, label: 'December' },
+]
 
 export function UtilitiesTracker() {
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -17,7 +34,7 @@ export function UtilitiesTracker() {
   const [utilitiesMap, setUtilitiesMap] = useState<Map<string, any[]>>(new Map())
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
-  const [selectedUtility, setSelectedUtility] = useState<any>(null)
+  const [selectedUtility, setSelectedUtility] = useState<{ utility: any; unit: any } | null>(null)
   const [recordedByNames, setRecordedByNames] = useState<Map<string, string>>(new Map())
 
   useEffect(() => {
@@ -55,8 +72,10 @@ export function UtilitiesTracker() {
       const userIds: string[] = []
       for (const utilityList of utilitiesByPairing.values()) {
         for (const utility of utilityList) {
-          if (utility.payment?.recorded_by_user_id) {
-            userIds.push(utility.payment.recorded_by_user_id)
+          for (const payment of utility.payments || []) {
+            if (payment.recorded_by_user_id) {
+              userIds.push(payment.recorded_by_user_id)
+            }
           }
         }
       }
@@ -91,10 +110,21 @@ export function UtilitiesTracker() {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1))
   }
 
-  const handleDeletePayment = async (paymentId: string) => {
+  const handleMonthSelect = (month: string) => {
+    setCurrentDate(new Date(currentDate.getFullYear(), Number(month), 1))
+  }
+
+  const handleYearInput = (year: string) => {
+    if (!year) return
+    const parsed = Number(year)
+    if (Number.isNaN(parsed)) return
+    setCurrentDate(new Date(parsed, currentDate.getMonth(), 1))
+  }
+
+  const handleDeletePayment = async (utilityId: string, unitId: string) => {
     if (!confirm('Delete this utility payment record?')) return
     try {
-      await deleteUtilityPayment(paymentId)
+      await deleteUtilityPayment(utilityId, unitId)
       await loadData()
     } catch (error) {
       console.error('Error deleting utility payment:', error)
@@ -137,7 +167,7 @@ export function UtilitiesTracker() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <h1 className="text-2xl sm:text-3xl font-bold text-white">Monthly Utilities Tracker</h1>
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Button
             onClick={previousMonth}
             variant="outline"
@@ -155,6 +185,24 @@ export function UtilitiesTracker() {
           >
             <ChevronRight size={16} />
           </Button>
+          <Select value={String(currentDate.getMonth())} onValueChange={handleMonthSelect}>
+            <SelectTrigger className="w-36 bg-slate-700 border-slate-600 text-white">
+              <SelectValue placeholder="Month" />
+            </SelectTrigger>
+            <SelectContent className="bg-slate-700 border-slate-600">
+              {MONTH_OPTIONS.map((month) => (
+                <SelectItem key={month.value} value={String(month.value)} className="text-white">
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="number"
+            value={currentDate.getFullYear()}
+            onChange={(e) => handleYearInput(e.target.value)}
+            className="w-24 bg-slate-700 border-slate-600 text-white"
+          />
         </div>
       </div>
 
@@ -171,69 +219,105 @@ export function UtilitiesTracker() {
               </h2>
               <p className="text-sm text-slate-400 mb-4">{firstUnit.propertyName}</p>
               <div className="space-y-3">
-                {utilities.map((utility: any) => (
-                  <div key={utility.id} className="p-4 bg-slate-700 rounded-lg border border-slate-600 space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
-                      <div>
-                        <p className="text-sm text-slate-400">Type</p>
-                        <p className="text-white font-medium">{utility.type}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-400">Due Date</p>
-                        <p className="text-white">{new Date(utility.due_date).toLocaleDateString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-400">Amount</p>
-                        <p className="text-white font-medium">PHP {Number(utility.amount).toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-400">Status</p>
-                        <p className="text-white">{utility.payment?.paid ? 'Paid' : 'Not Paid'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-400">Recorded By</p>
-                        <p className="text-white text-sm">
-                          {utility.payment?.recorded_by_user_id
-                            ? recordedByNames.get(utility.payment.recorded_by_user_id) ||
-                              utility.payment.recorded_by_user_id
-                            : '-'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-slate-400">Recorded Date/Time</p>
-                        <p className="text-white text-sm">
-                          {utility.payment?.recorded_date
-                            ? new Date(utility.payment.recorded_date).toLocaleString()
-                            : '-'}
-                        </p>
-                      </div>
-                    </div>
+                {utilities.map((utility: any) => {
+                  const firstPayment = (utility.payments || []).find(
+                    (payment: any) => payment.unit_id === firstUnit.id
+                  )
+                  const secondPayment = (utility.payments || []).find(
+                    (payment: any) => payment.unit_id === secondUnit.id
+                  )
 
-                    <div>
-                      <p className="text-sm text-slate-400">Comments</p>
-                      <p className="text-sm text-white">{utility.payment?.comments || '-'}</p>
-                    </div>
+                  return (
+                    <div key={utility.id} className="p-4 bg-slate-700 rounded-lg border border-slate-600 space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+                        <div>
+                          <p className="text-sm text-slate-400">Type</p>
+                          <p className="text-white font-medium">{utility.type}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-400">Due Date</p>
+                          <p className="text-white">{new Date(utility.due_date).toLocaleDateString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-400">Amount</p>
+                          <p className="text-white font-medium">PHP {Number(utility.amount).toLocaleString()}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-400">{firstUnit.name} Status</p>
+                          <p className="text-white">{firstPayment?.paid ? 'Paid' : 'Not Paid'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-400">{secondUnit.name} Status</p>
+                          <p className="text-white">{secondPayment?.paid ? 'Paid' : 'Not Paid'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-slate-400">Recorded Date/Time</p>
+                          <p className="text-white text-sm">
+                            {firstPayment?.recorded_date
+                              ? new Date(firstPayment.recorded_date).toLocaleString()
+                              : secondPayment?.recorded_date
+                              ? new Date(secondPayment.recorded_date).toLocaleString()
+                              : '-'}
+                          </p>
+                        </div>
+                      </div>
 
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => setSelectedUtility(utility)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
-                      >
-                        Record
-                      </Button>
-                      {utility.payment && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-slate-400">{firstUnit.name} Recorded By</p>
+                          <p className="text-white">
+                            {firstPayment?.recorded_by_user_id
+                              ? recordedByNames.get(firstPayment.recorded_by_user_id) || firstPayment.recorded_by_user_id
+                              : '-'}
+                          </p>
+                          <p className="text-slate-300">{firstPayment?.comments || '-'}</p>
+                        </div>
+                        <div>
+                          <p className="text-slate-400">{secondUnit.name} Recorded By</p>
+                          <p className="text-white">
+                            {secondPayment?.recorded_by_user_id
+                              ? recordedByNames.get(secondPayment.recorded_by_user_id) || secondPayment.recorded_by_user_id
+                              : '-'}
+                          </p>
+                          <p className="text-slate-300">{secondPayment?.comments || '-'}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
                         <Button
-                          onClick={() => handleDeletePayment(utility.payment.id)}
-                          variant="outline"
-                          size="icon"
-                          className="border-red-600/50 text-red-400 hover:bg-red-900/20"
+                          onClick={() => setSelectedUtility({ utility, unit: firstUnit })}
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
                         >
-                          <Trash2 size={16} />
+                          Record {firstUnit.name}
                         </Button>
-                      )}
+                        {firstPayment && (
+                          <Button
+                            onClick={() => handleDeletePayment(utility.id, firstUnit.id)}
+                            variant="outline"
+                            className="border-red-600/50 text-red-400 hover:bg-red-900/20 text-xs"
+                          >
+                            Delete {firstUnit.name}
+                          </Button>
+                        )}
+                        <Button
+                          onClick={() => setSelectedUtility({ utility, unit: secondUnit })}
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                        >
+                          Record {secondUnit.name}
+                        </Button>
+                        {secondPayment && (
+                          <Button
+                            onClick={() => handleDeletePayment(utility.id, secondUnit.id)}
+                            variant="outline"
+                            className="border-red-600/50 text-red-400 hover:bg-red-900/20 text-xs"
+                          >
+                            Delete {secondUnit.name}
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </Card>
           ))}
@@ -248,7 +332,8 @@ export function UtilitiesTracker() {
 
       {selectedUtility && (
         <UtilityPaymentDialog
-          utility={selectedUtility}
+          utility={selectedUtility.utility}
+          unit={selectedUtility.unit}
           currentUser={currentUser}
           onClose={() => setSelectedUtility(null)}
           onPaymentRecorded={handlePaymentRecorded}
