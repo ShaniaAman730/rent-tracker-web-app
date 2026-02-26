@@ -40,7 +40,6 @@ const START_YEAR = 2026
 type ContractFormState = {
   unitId: string
   tenantId: string
-  landlordId: string
   year: string
   firstName: string
   middleName: string
@@ -60,7 +59,6 @@ type ContractFormState = {
 const emptyForm: ContractFormState = {
   unitId: '',
   tenantId: '',
-  landlordId: '',
   year: String(START_YEAR),
   firstName: '',
   middleName: '',
@@ -117,7 +115,7 @@ export default function ContractMonitoringPage() {
       setCurrentUser(user)
       setProperties(props)
       setTenants(allTenants)
-      setLandlords(allLandlords)
+      setLandlords(allLandlords.slice(0, 1))
       setContracts(yearlyContracts)
 
       const userIds = yearlyContracts.map((contract: any) => contract.recorded_by_user_id).filter(Boolean)
@@ -146,6 +144,8 @@ export default function ContractMonitoringPage() {
     return map
   }, [tenants])
 
+  const singleLandlord = useMemo(() => landlords[0] || null, [landlords])
+
   function openCreateDialog(unit: any) {
     const unitTenants = tenantsByUnit.get(unit.id) || []
     const defaultTenant = unitTenants[0]
@@ -154,7 +154,6 @@ export default function ContractMonitoringPage() {
       ...emptyForm,
       unitId: unit.id,
       tenantId: defaultTenant?.id || '',
-      landlordId: landlords[0]?.id || '',
       year: String(currentYear),
       firstName: defaultTenant?.first_name || '',
       lastName: defaultTenant?.last_name || '',
@@ -169,7 +168,6 @@ export default function ContractMonitoringPage() {
     setContractForm({
       unitId: contract.unit_id,
       tenantId: contract.tenant_id,
-      landlordId: contract.landlord_id || '',
       year: String(contract.year),
       firstName: contract.first_name,
       middleName: contract.middle_name,
@@ -204,7 +202,6 @@ export default function ContractMonitoringPage() {
     const required = [
       contractForm.unitId,
       contractForm.tenantId,
-      contractForm.landlordId,
       contractForm.year,
       contractForm.firstName,
       contractForm.middleName,
@@ -226,6 +223,12 @@ export default function ContractMonitoringPage() {
   async function handleSaveContract() {
     if (!currentUser?.id) return
     setFormError(null)
+    const landlordId = singleLandlord?.id || ''
+
+    if (!landlordId) {
+      setFormError('Please set up landlord profile first.')
+      return
+    }
 
     if (!validateForm()) {
       setFormError('Please complete all required fields.')
@@ -237,7 +240,7 @@ export default function ContractMonitoringPage() {
       if (editingContractId) {
         await updateContract(editingContractId, {
           tenant_id: contractForm.tenantId,
-          landlord_id: contractForm.landlordId,
+          landlord_id: landlordId,
           year: Number(contractForm.year),
           first_name: contractForm.firstName.trim(),
           middle_name: contractForm.middleName.trim(),
@@ -258,7 +261,7 @@ export default function ContractMonitoringPage() {
         await createContract(
           contractForm.unitId,
           contractForm.tenantId,
-          contractForm.landlordId,
+          landlordId,
           Number(contractForm.year),
           contractForm.firstName.trim(),
           contractForm.middleName.trim(),
@@ -348,7 +351,7 @@ export default function ContractMonitoringPage() {
   async function handleExport(contract: any, property: any, unit: any) {
     try {
       setExportingId(contract.id)
-      const landlord = landlords.find((item) => item.id === contract.landlord_id)
+      const landlord = landlords.find((item) => item.id === contract.landlord_id) || singleLandlord
       const tenant = tenants.find((item) => item.id === contract.tenant_id)
       if (!landlord) {
         alert('Landlord record is missing for this contract.')
@@ -483,7 +486,8 @@ export default function ContractMonitoringPage() {
                               <p className="text-slate-400">Landlord</p>
                               <p className="text-white">
                                 {(() => {
-                                  const landlord = landlords.find((item) => item.id === contract.landlord_id)
+                                  const landlord =
+                                    landlords.find((item) => item.id === contract.landlord_id) || singleLandlord
                                   return landlord
                                     ? `${landlord.first_name} ${landlord.middle_name} ${landlord.last_name}`
                                     : '-'
@@ -618,26 +622,6 @@ export default function ContractMonitoringPage() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div>
-              <Label className="text-slate-200">Landlord</Label>
-              <Select
-                value={contractForm.landlordId}
-                onValueChange={(value) => setContractForm((prev) => ({ ...prev, landlordId: value }))}
-              >
-                <SelectTrigger className="mt-1 bg-slate-700 border-slate-600 text-white">
-                  <SelectValue placeholder="Select landlord" />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-700 border-slate-600">
-                  {landlords.map((landlord) => (
-                    <SelectItem key={landlord.id} value={landlord.id} className="text-white">
-                      {landlord.name_prefix ? `${landlord.name_prefix} ` : ''}
-                      {landlord.first_name} {landlord.middle_name} {landlord.last_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
