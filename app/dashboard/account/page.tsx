@@ -23,6 +23,7 @@ export default function AccountPage() {
   const [displayName, setDisplayName] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [email, setEmail] = useState('')
+  const [role, setRole] = useState<'manager' | 'contributor' | null>(null)
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
@@ -39,6 +40,7 @@ export default function AccountPage() {
       setDisplayName(user.full_name || '')
       setPhoneNumber(user.phone_number || '')
       setEmail(user.email || '')
+      setRole(user.role)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load account')
     } finally {
@@ -111,6 +113,9 @@ export default function AccountPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold text-white">Account Settings</h1>
+      {role && (
+        <p className="text-sm text-slate-400">Role: {role}</p>
+      )}
 
       {message && (
         <div className="p-3 bg-emerald-900/20 border border-emerald-700 text-emerald-200 rounded text-sm">

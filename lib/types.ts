@@ -3,6 +3,7 @@ export type User = {
   email: string
   full_name: string
   phone_number: string | null
+  role: 'manager' | 'contributor'
 }
 
 export type RentalProperty = {
@@ -12,6 +13,7 @@ export type RentalProperty = {
   code: string
   no_units: number
   created_at: string
+  recorded_by_user_id?: string | null
 }
 
 export type Unit = {
@@ -42,6 +44,7 @@ export type Tenant = {
   gov_id_no: string | null
   id_issued_date: string | null
   id_expiry_date: string | null
+  recorded_by_user_id?: string | null
   created_at: string
 }
 
@@ -113,6 +116,7 @@ export type Utility = {
   first_floor_reading: number
   second_floor_reading: number
   amount: number
+  recorded_by_user_id?: string | null
   created_at: string
 }
 

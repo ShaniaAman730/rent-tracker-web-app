@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createProperty, updateProperty } from '@/lib/api/properties'
+import { getCurrentUser } from '@/lib/api/users'
 import { RentalProperty } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -52,7 +53,8 @@ export function PropertyForm({ open, onOpenChange, property, onSuccess }: Proper
           no_units: parseInt(noUnits),
         })
       } else {
-        await createProperty(name, address, code, parseInt(noUnits))
+        const user = await getCurrentUser()
+        await createProperty(name, address, code, parseInt(noUnits), user?.id || undefined)
       }
 
       setName('')

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createTenant, updateTenant } from '@/lib/api/tenants'
+import { getCurrentUser } from '@/lib/api/users'
 import { Tenant } from '@/lib/types'
 import { GOV_ID_TYPE_OPTIONS } from '@/lib/constants/gov-ids'
 import { Button } from '@/components/ui/button'
@@ -63,6 +64,7 @@ export function TenantForm({
     setLoading(true)
 
     try {
+      const user = await getCurrentUser()
       if (tenant) {
         await updateTenant(tenant.id, {
           first_name: firstName,
@@ -73,6 +75,7 @@ export function TenantForm({
           gov_id_no: govIdNo || null,
           id_issued_date: idIssuedDate || null,
           id_expiry_date: idExpiryDate || null,
+          recorded_by_user_id: user?.id,
         })
       } else {
         await createTenant(
@@ -84,7 +87,8 @@ export function TenantForm({
           govIdType || null,
           govIdNo || null,
           idIssuedDate || null,
-          idExpiryDate || null
+          idExpiryDate || null,
+          user?.id
         )
       }
 

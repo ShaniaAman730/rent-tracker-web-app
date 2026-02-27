@@ -523,9 +523,9 @@ export default function ComputeUtilitiesPage() {
 
     return (
       <Card className="p-6 border-slate-700 bg-slate-800">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-white">{title}</h2>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+          <h2 className="text-xl font-semibold text-white mb-2 md:mb-0">{title}</h2>
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -655,25 +655,36 @@ export default function ComputeUtilitiesPage() {
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                            onClick={() => {
-                              setEditingUtility(utility)
-                              setFormOpen(true)
-                            }}
-                          >
-                            <Edit size={14} />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="border-red-600/50 text-red-400 hover:bg-red-900/20"
-                            onClick={() => handleDeleteUtility(utility.id)}
-                          >
-                            <Trash2 size={14} />
-                          </Button>
+                          {(() => {
+                            const canModify =
+                              currentUser?.role === 'manager' ||
+                              utility.recorded_by_user_id === currentUser?.id
+                            return (
+                              <>
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                                  onClick={() => {
+                                    setEditingUtility(utility)
+                                    setFormOpen(true)
+                                  }}
+                                  disabled={!canModify}
+                                >
+                                  <Edit size={14} />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="outline"
+                                  className="border-red-600/50 text-red-400 hover:bg-red-900/20"
+                                  onClick={() => handleDeleteUtility(utility.id)}
+                                  disabled={!canModify}
+                                >
+                                  <Trash2 size={14} />
+                                </Button>
+                              </>
+                            )
+                          })()}
                         </div>
                       </td>
                     </tr>
@@ -804,50 +815,56 @@ export default function ComputeUtilitiesPage() {
       {selectedPairing ? (
         <>
           <Card className="p-4 border-slate-700 bg-slate-800">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <Label className="text-slate-200 mr-2">Tracker Month/Year</Label>
-              <Button
-                onClick={previousMonth}
-                variant="outline"
-                size="sm"
-                className="border-slate-600 text-slate-300 hover:bg-slate-700"
-              >
-                <ChevronLeft size={16} />
-              </Button>
-              <span className="text-base sm:text-lg font-semibold text-white min-w-40 text-center">
-                {trackerDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
-              </span>
-              <Button
-                onClick={nextMonth}
-                variant="outline"
-                size="sm"
-                className="border-slate-600 text-slate-300 hover:bg-slate-700"
-              >
-                <ChevronRight size={16} />
-              </Button>
-              <Select
-                value={String(trackerMonth)}
-                onValueChange={(month) => setTrackerDate(new Date(trackerYear, Number(month), 1))}
-              >
-                <SelectTrigger className="w-36 bg-slate-700 border-slate-600 text-white">
-                  <SelectValue placeholder="Month" />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-700 border-slate-600">
-                  {MONTH_OPTIONS.map((month) => (
-                    <SelectItem key={month.value} value={String(month.value)} className="text-white">
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                type="number"
-                value={trackerYear}
-                onChange={(e) =>
-                  setTrackerDate(new Date(Number(e.target.value) || trackerYear, trackerMonth, 1))
-                }
-                className="w-24 bg-slate-700 border-slate-600 text-white"
-              />
+            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-3">
+              <Label className="text-slate-200">Tracker Month/Year</Label>
+
+              <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                <Button
+                  onClick={previousMonth}
+                  variant="outline"
+                  size="sm"
+                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                >
+                  <ChevronLeft size={16} />
+                </Button>
+                <span className="text-base sm:text-lg font-semibold text-white min-w-40 text-center">
+                  {trackerDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                </span>
+                <Button
+                  onClick={nextMonth}
+                  variant="outline"
+                  size="sm"
+                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                >
+                  <ChevronRight size={16} />
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                <Select
+                  value={String(trackerMonth)}
+                  onValueChange={(month) => setTrackerDate(new Date(trackerYear, Number(month), 1))}
+                >
+                  <SelectTrigger className="w-36 bg-slate-700 border-slate-600 text-white">
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-700 border-slate-600">
+                    {MONTH_OPTIONS.map((month) => (
+                      <SelectItem key={month.value} value={String(month.value)} className="text-white">
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  value={trackerYear}
+                  onChange={(e) =>
+                    setTrackerDate(new Date(Number(e.target.value) || trackerYear, trackerMonth, 1))
+                  }
+                  className="w-24 bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
             </div>
           </Card>
 
@@ -861,7 +878,7 @@ export default function ComputeUtilitiesPage() {
       )}
 
       <Dialog open={Boolean(viewingComputation)} onOpenChange={() => setViewingComputation(null)}>
-        <DialogContent className="bg-slate-800 border-slate-700 max-w-4xl">
+        <DialogContent className="bg-slate-800 border-slate-700 max-w-4xl w-full">
           <DialogHeader>
             <DialogTitle className="text-white">Utility Computation Preview</DialogTitle>
             <DialogDescription className="text-slate-400">
@@ -876,7 +893,7 @@ export default function ComputeUtilitiesPage() {
               This is the first reading for this pair and utility type. A previous reference is required to compute billing.
             </p>
           ) : (
-            <div className="rounded border border-slate-600 bg-white text-slate-900 p-4 space-y-4">
+            <div className="rounded border border-slate-600 bg-white text-slate-900 p-4 space-y-4 overflow-x-auto">
               <h3 className="text-center font-semibold">
                 {viewingBillingData.unitName} ({viewingBillingData.type}) - {new Date(viewingBillingData.currentDate).toLocaleDateString()}
               </h3>

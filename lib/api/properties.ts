@@ -28,16 +28,20 @@ export async function createProperty(
   name: string,
   address: string,
   code: string,
-  no_units: number
+  no_units: number,
+  recordedByUserId?: string
 ): Promise<RentalProperty> {
+  const insertData: any = {
+    name,
+    address,
+    code,
+    no_units,
+  }
+  if (recordedByUserId) insertData.recorded_by_user_id = recordedByUserId
+
   const { data, error } = await supabase
     .from('rental_property')
-    .insert({
-      name,
-      address,
-      code,
-      no_units,
-    })
+    .insert(insertData)
     .select()
     .single()
 
@@ -49,6 +53,15 @@ export async function updateProperty(
   id: string,
   updates: Partial<RentalProperty>
 ): Promise<RentalProperty> {
+  const { data: existing, error: fetchError } = await supabase
+    .from('rental_property')
+    .select('recorded_by_user_id')
+    .eq('id', id)
+    .single()
+  if (fetchError) throw fetchError
+
+  // reliant on front-end permission check; backend policy should eventually enforce row-level security
+
   const { data, error } = await supabase
     .from('rental_property')
     .update(updates)

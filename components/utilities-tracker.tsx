@@ -5,6 +5,7 @@ import { getPropertiesWithUnits } from '@/lib/api/properties'
 import { deleteUtilityPayment, getUtilitiesWithPaymentsForPairings } from '@/lib/api/utilities'
 import { getCurrentUser, getUsersMapByIds } from '@/lib/api/users'
 import { getUnitPairings } from '@/lib/api/unit-pairings'
+import { calculateBillingData } from '@/lib/billing-helpers'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -242,7 +243,7 @@ export function UtilitiesTracker() {
 
                   return (
                     <div key={utility.id} className="p-4 bg-slate-700 rounded-lg border border-slate-600 space-y-3">
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+                      <div className="grid grid-cols-1 gap-3">
                         <div>
                           <p className="text-sm text-slate-400">Type</p>
                           <p className="text-white font-medium">{utility.type}</p>
@@ -252,47 +253,73 @@ export function UtilitiesTracker() {
                           <p className="text-white">{new Date(utility.due_date).toLocaleDateString()}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-slate-400">Amount</p>
+                          <p className="text-sm text-slate-400">Total Amount Due</p>
                           <p className="text-white font-medium">PHP {Number(utility.amount).toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-slate-400">{firstUnit.name} Status</p>
-                          <p className="text-white">{firstPayment?.paid ? 'Paid' : 'Not Paid'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-slate-400">{secondUnit.name} Status</p>
-                          <p className="text-white">{secondPayment?.paid ? 'Paid' : 'Not Paid'}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-slate-400">Recorded Date/Time</p>
-                          <p className="text-white text-sm">
-                            {firstPayment?.recorded_date
-                              ? new Date(firstPayment.recorded_date).toLocaleString()
-                              : secondPayment?.recorded_date
-                              ? new Date(secondPayment.recorded_date).toLocaleString()
-                              : '-'}
-                          </p>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <p className="text-slate-400">{firstUnit.name} Recorded By</p>
-                          <p className="text-white">
-                            {firstPayment?.recorded_by_user_id
+                      {/* first/second floor details */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-4">
+                        {/* first floor block */}
+                        <div className="space-y-1 text-sm">
+                          <p className="text-slate-400">First Floor Amount Due</p>
+                          <p className="text-white font-medium">
+                            {(() => {
+                              const prev = utilities.find((u) => u.id !== utility.id && new Date(u.date_of_reading) < new Date(utility.date_of_reading))
+                              if (prev) {
+                                const bill = calculateBillingData(prev, utility, '', '')
+                                return `PHP ${bill.firstFloorAmount.toFixed(2)}`
+                              }
+                              return '-'
+                            })()}
+                          </p>
+                          <p className="text-slate-400">
+                            Status: {firstPayment?.paid ? 'Paid' : 'Not Paid'}
+                          </p>
+                          <p className="text-slate-400">
+                            Recorded by: {firstPayment?.recorded_by_user_id
                               ? recordedByNames.get(firstPayment.recorded_by_user_id) || firstPayment.recorded_by_user_id
                               : '-'}
                           </p>
-                          <p className="text-slate-300">{firstPayment?.comments || '-'}</p>
+                          <p className="text-slate-400">
+                            Comments: {firstPayment?.comments || '-'}
+                          </p>
+                          <p className="text-slate-400">
+                            Recorded Date/Time: {firstPayment?.recorded_date
+                              ? new Date(firstPayment.recorded_date).toLocaleString()
+                              : '-'}
+                          </p>
                         </div>
-                        <div>
-                          <p className="text-slate-400">{secondUnit.name} Recorded By</p>
-                          <p className="text-white">
-                            {secondPayment?.recorded_by_user_id
+
+                        {/* second floor block */}
+                        <div className="space-y-1 text-sm">
+                          <p className="text-slate-400">Second Floor Amount Due</p>
+                          <p className="text-white font-medium">
+                            {(() => {
+                              const prev = utilities.find((u) => u.id !== utility.id && new Date(u.date_of_reading) < new Date(utility.date_of_reading))
+                              if (prev) {
+                                const bill = calculateBillingData(prev, utility, '', '')
+                                return `PHP ${bill.secondFloorAmount.toFixed(2)}`
+                              }
+                              return '-'
+                            })()}
+                          </p>
+                          <p className="text-slate-400">
+                            Status: {secondPayment?.paid ? 'Paid' : 'Not Paid'}
+                          </p>
+                          <p className="text-slate-400">
+                            Recorded by: {secondPayment?.recorded_by_user_id
                               ? recordedByNames.get(secondPayment.recorded_by_user_id) || secondPayment.recorded_by_user_id
                               : '-'}
                           </p>
-                          <p className="text-slate-300">{secondPayment?.comments || '-'}</p>
+                          <p className="text-slate-400">
+                            Comments: {secondPayment?.comments || '-'}
+                          </p>
+                          <p className="text-slate-400">
+                            Recorded Date/Time: {secondPayment?.recorded_date
+                              ? new Date(secondPayment.recorded_date).toLocaleString()
+                              : '-'}
+                          </p>
                         </div>
                       </div>
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createUtility, updateUtility } from '@/lib/api/utilities'
+import { getCurrentUser } from '@/lib/api/users'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -83,6 +84,7 @@ export function AddUtilityDialog({
         throw new Error('Please select a pair')
       }
 
+      const user = await getCurrentUser()
       if (editingUtility) {
         await updateUtility(editingUtility.id, {
           pairing_id: selectedPairingId,
@@ -93,6 +95,7 @@ export function AddUtilityDialog({
           first_floor_reading: parseFloat(firstFloorReading),
           second_floor_reading: parseFloat(secondFloorReading),
           amount: parseFloat(amount),
+          recorded_by_user_id: user?.id,
         })
       } else {
         await createUtility(
@@ -103,7 +106,8 @@ export function AddUtilityDialog({
           parseFloat(unitReading),
           parseFloat(firstFloorReading),
           parseFloat(secondFloorReading),
-          parseFloat(amount)
+          parseFloat(amount),
+          user?.id
         )
       }
 

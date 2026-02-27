@@ -34,21 +34,25 @@ export async function createTenant(
   govIdType: string | null,
   govIdNo: string | null,
   idIssuedDate: string | null,
-  idExpiryDate: string | null
+  idExpiryDate: string | null,
+  recordedByUserId?: string
 ): Promise<Tenant> {
+  const insertData: any = {
+    unit_id: unitId,
+    first_name: firstName,
+    last_name: lastName,
+    contact_no: contactNo,
+    messenger,
+    gov_id_type: govIdType,
+    gov_id_no: govIdNo,
+    id_issued_date: idIssuedDate,
+    id_expiry_date: idExpiryDate,
+  }
+  if (recordedByUserId) insertData.recorded_by_user_id = recordedByUserId
+
   const { data, error } = await supabase
     .from('tenant')
-    .insert({
-      unit_id: unitId,
-      first_name: firstName,
-      last_name: lastName,
-      contact_no: contactNo,
-      messenger,
-      gov_id_type: govIdType,
-      gov_id_no: govIdNo,
-      id_issued_date: idIssuedDate,
-      id_expiry_date: idExpiryDate,
-    })
+    .insert(insertData)
     .select()
     .single()
 

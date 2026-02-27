@@ -17,7 +17,7 @@ function downloadBlob(blob: Blob, filename: string) {
 const tableStyle = 'width:100%; border-collapse:collapse; margin-bottom:16px; border:2px solid #111827;'
 const cellStyle = 'border:1px solid #111827; padding:6px;'
 
-export function buildBillingPreviewElement(data: BillingDataForExport) {
+export function buildBillingPreviewElement(data: BillingDataForExport, copies = 3) {
   const wrapper = document.createElement('div')
   wrapper.style.width = '1200px'
   wrapper.style.background = '#ffffff'
@@ -25,10 +25,10 @@ export function buildBillingPreviewElement(data: BillingDataForExport) {
   wrapper.style.padding = '24px'
   wrapper.style.fontFamily = 'Arial, sans-serif'
 
-  const copyHtml = Array.from({ length: 3 })
+  const copyHtml = Array.from({ length: copies })
     .map(
       (_, idx) => `
-      <div style="margin-bottom:${idx === 2 ? 0 : 32}px; border:1px solid #e5e7eb; padding:16px;">
+      <div style="margin-bottom:${idx === copies - 1 ? 0 : 32}px; border:1px solid #e5e7eb; padding:16px;">
         <h2 style="text-align:center; margin:0 0 8px 0;">${data.unitName} (${data.type}) - ${new Date(
           data.currentDate
         ).toLocaleDateString()}</h2>
@@ -88,6 +88,9 @@ export function buildBillingPreviewElement(data: BillingDataForExport) {
             <td style="${cellStyle}"><b>${data.amount.toFixed(2)}</b></td>
           </tr>
         </table>
+        <p style="margin:4px 0;">First Floor Amount Due: ${data.firstFloorAmount.toFixed(2)}</p>
+        <p style="margin:4px 0;">Second Floor Amount Due: ${data.secondFloorAmount.toFixed(2)}</p>
+        <p style="margin:4px 0;">Total Amount Due: ${data.amount.toFixed(2)}</p>
         <p style="margin:4px 0;">Prepared by: ${data.preparedBy}</p>
         <p style="margin:4px 0;">Date: ${new Date().toLocaleDateString()}</p>
       </div>`
@@ -99,7 +102,7 @@ export function buildBillingPreviewElement(data: BillingDataForExport) {
 }
 
 export async function exportBillingToPng(data: BillingDataForExport, filename: string) {
-  const node = buildBillingPreviewElement(data)
+  const node = buildBillingPreviewElement(data, 1)
   document.body.appendChild(node)
   const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
   document.body.removeChild(node)
@@ -163,6 +166,10 @@ export function exportBillingToExcel(data: BillingDataForExport, filename: strin
     rows.push(['First Floor', data.amount, data.firstFloorPercentage / 100, data.firstFloorAmount])
     rows.push(['Second Floor', data.amount, data.secondFloorPercentage / 100, data.secondFloorAmount])
     rows.push(['TOTAL', '', '', data.amount])
+    // additional lines
+    rows.push(['First Floor Amount Due', data.firstFloorAmount])
+    rows.push(['Second Floor Amount Due', data.secondFloorAmount])
+    rows.push(['Total Amount Due', data.amount])
     rows.push(['Prepared by', data.preparedBy])
     rows.push(['Date', new Date().toLocaleDateString()])
     rows.push([])

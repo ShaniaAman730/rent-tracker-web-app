@@ -49,7 +49,8 @@ export async function createUtility(
   unitReading: number,
   firstFloorReading: number,
   secondFloorReading: number,
-  amount: number
+  amount: number,
+  recordedByUserId?: string
 ): Promise<Utility> {
   const readingDate = new Date(dateOfReading)
   const monthStart = new Date(Date.UTC(readingDate.getUTCFullYear(), readingDate.getUTCMonth(), 1))
@@ -69,18 +70,21 @@ export async function createUtility(
     throw new Error('A utility reading for this pair, type, and month already exists.')
   }
 
+  const insertData: any = {
+    pairing_id: pairingId,
+    type,
+    due_date: dueDate,
+    date_of_reading: dateOfReading,
+    unit_reading: unitReading,
+    first_floor_reading: firstFloorReading,
+    second_floor_reading: secondFloorReading,
+    amount,
+  }
+  if (recordedByUserId) insertData.recorded_by_user_id = recordedByUserId
+
   const { data, error } = await supabase
     .from('utility')
-    .insert({
-      pairing_id: pairingId,
-      type,
-      due_date: dueDate,
-      date_of_reading: dateOfReading,
-      unit_reading: unitReading,
-      first_floor_reading: firstFloorReading,
-      second_floor_reading: secondFloorReading,
-      amount,
-    })
+    .insert(insertData)
     .select()
     .single()
 
@@ -88,7 +92,7 @@ export async function createUtility(
   return data
 }
 
-export async function updateUtility(id: string, updates: Partial<Utility>): Promise<Utility> {
+export async function updateUtility(id: string, updates: Partial<Utility> & { recorded_by_user_id?: string }): Promise<Utility> {
   if (updates.pairing_id && updates.type && updates.date_of_reading) {
     const readingDate = new Date(updates.date_of_reading)
     const monthStart = new Date(Date.UTC(readingDate.getUTCFullYear(), readingDate.getUTCMonth(), 1))
