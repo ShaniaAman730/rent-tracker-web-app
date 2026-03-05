@@ -14,14 +14,14 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-const tableStyle = 'width:100%; border-collapse:collapse; margin-bottom:16px; border:2px solid #111827;'
-const cellStyle = 'border:1px solid #111827; padding:6px;'
+const tableStyle = 'width:100%; border-collapse:collapse; margin-bottom:16px; border:2px solid #000000;'
+const cellStyle = 'border:1px solid #000000; padding:6px;'
 
 export function buildBillingPreviewElement(data: BillingDataForExport, copies = 3) {
   const wrapper = document.createElement('div')
   wrapper.style.width = '1200px'
   wrapper.style.background = '#ffffff'
-  wrapper.style.color = '#111827'
+  wrapper.style.color = '#000000'
   wrapper.style.padding = '24px'
   wrapper.style.fontFamily = 'Arial, sans-serif'
 
@@ -32,6 +32,12 @@ export function buildBillingPreviewElement(data: BillingDataForExport, copies = 
         <h2 style="text-align:center; margin:0 0 8px 0;">${data.unitName} (${data.type}) - ${new Date(
           data.currentDate
         ).toLocaleDateString()}</h2>
+        <table style="width:100%; margin-bottom:12px;">
+          <tr>
+            <td style="text-align:center; width:50%;">Date of Reading: ${new Date(data.currentDate).toLocaleDateString()}</td>
+            <td style="text-align:center; width:50%; color:#dc2626;">Due Date: ${new Date(data.dueDate).toLocaleDateString()}</td>
+          </tr>
+        </table>
         <table style="${tableStyle}">
           <tr>
             <th style="${cellStyle}">Location</th>
@@ -88,11 +94,24 @@ export function buildBillingPreviewElement(data: BillingDataForExport, copies = 
             <td style="${cellStyle}"><b>${data.amount.toFixed(2)}</b></td>
           </tr>
         </table>
-        <p style="margin:4px 0;">First Floor Amount Due: ${data.firstFloorAmount.toFixed(2)}</p>
-        <p style="margin:4px 0;">Second Floor Amount Due: ${data.secondFloorAmount.toFixed(2)}</p>
-        <p style="margin:4px 0;">Total Amount Due: ${data.amount.toFixed(2)}</p>
-        <p style="margin:4px 0;">Prepared by: ${data.preparedBy}</p>
-        <p style="margin:4px 0;">Date: ${new Date().toLocaleDateString()}</p>
+        <div style="display:flex; align-items:flex-end; margin:4px 0;">
+          <span>First Floor Amount Due</span>
+          <span style="flex:1; border-bottom:1px dotted #000000; margin:0 6px 4px 6px;"></span>
+          <span>PHP ${data.firstFloorAmount.toFixed(2)}</span>
+        </div>
+        <div style="display:flex; align-items:flex-end; margin:4px 0;">
+          <span>Second Floor Amount Due</span>
+          <span style="flex:1; border-bottom:1px dotted #000000; margin:0 6px 4px 6px;"></span>
+          <span>PHP ${data.secondFloorAmount.toFixed(2)}</span>
+        </div>
+        <div style="width:100%; margin:6px 0; border-top:1px solid #000000;"></div>
+        <div style="display:flex; align-items:flex-end; margin:4px 0; font-weight:700;">
+          <span>Total Amount Due</span>
+          <span style="flex:1; border-bottom:1px dotted #000000; margin:0 6px 4px 6px;"></span>
+          <span>PHP ${data.amount.toFixed(2)}</span>
+        </div>
+        <p style="margin:12px 0 4px 0;">Prepared by: ${data.preparedBy}</p>
+        <p style="margin:4px 0;">Date Prepared: ${new Date().toLocaleDateString()}</p>
       </div>`
     )
     .join('')
@@ -145,6 +164,7 @@ export function exportBillingToExcel(data: BillingDataForExport, filename: strin
   const rows: (string | number)[][] = []
   for (let copy = 1; copy <= 3; copy++) {
     rows.push([`${data.unitName} (${data.type}) - ${new Date(data.currentDate).toLocaleDateString()}`])
+    rows.push([`Date of Reading: ${new Date(data.currentDate).toLocaleDateString()}`, `Due Date: ${new Date(data.dueDate).toLocaleDateString()}`])
     rows.push(['Location', 'Current RDG. kw hour', 'Previous RDG. kw hour', 'Consumption kw hour', 'Percentage'])
     rows.push([
       'First Floor',
@@ -167,11 +187,13 @@ export function exportBillingToExcel(data: BillingDataForExport, filename: strin
     rows.push(['Second Floor', data.amount, data.secondFloorPercentage / 100, data.secondFloorAmount])
     rows.push(['TOTAL', '', '', data.amount])
     // additional lines
-    rows.push(['First Floor Amount Due', data.firstFloorAmount])
-    rows.push(['Second Floor Amount Due', data.secondFloorAmount])
-    rows.push(['Total Amount Due', data.amount])
+    rows.push([`First Floor Amount Due.............................PHP ${data.firstFloorAmount.toFixed(2)}`])
+    rows.push([`Second Floor Amount Due...........................PHP ${data.secondFloorAmount.toFixed(2)}`])
+    rows.push(['--------------------------------------------------------------'])
+    rows.push([`Total Amount Due..................................PHP ${data.amount.toFixed(2)}`])
+    rows.push([])
     rows.push(['Prepared by', data.preparedBy])
-    rows.push(['Date', new Date().toLocaleDateString()])
+    rows.push(['Date Prepared', new Date().toLocaleDateString()])
     rows.push([])
   }
 
