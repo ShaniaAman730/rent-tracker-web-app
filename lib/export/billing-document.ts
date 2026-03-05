@@ -1,8 +1,11 @@
 import {
   AlignmentType,
   Document,
+  LeaderType,
   Packer,
   Paragraph,
+  TabStopPosition,
+  TabStopType,
   Table,
   TableCell,
   TableRow,
@@ -21,6 +24,69 @@ function createCell(text: string, bold = false): TableCell {
     ],
     margins: { top: 80, bottom: 80, left: 80, right: 80 },
     verticalAlign: VerticalAlign.CENTER,
+  })
+}
+
+function formatAmount(value: number): string {
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+function buildReadingAndDueDateTable(billingData: BillingDataForExport) {
+  return new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `Date of Reading: ${new Date(billingData.currentDate).toLocaleDateString()}`,
+                  }),
+                ],
+              }),
+            ],
+          }),
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({
+                    text: `Due Date: ${new Date(billingData.dueDate).toLocaleDateString()}`,
+                    color: 'FF0000',
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  })
+}
+
+function createAmountDueParagraph(label: string, amount: number, bold = false) {
+  return new Paragraph({
+    tabStops: [
+      {
+        type: TabStopType.RIGHT,
+        position: TabStopPosition.MAX,
+        leader: LeaderType.DOT,
+      },
+    ],
+    children: [
+      new TextRun({ text: label, bold }),
+      new TextRun({ text: '\t' }),
+      new TextRun({ text: `PHP ${formatAmount(amount)}`, bold }),
+    ],
   })
 }
 
@@ -124,7 +190,7 @@ export async function generateBillingDocument(billingData: BillingDataForExport)
     children.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 120 },
+        spacing: { after: 80 },
         children: [
           new TextRun({
             text: `${billingData.unitName} (${billingData.type}) - ${new Date(
@@ -136,6 +202,8 @@ export async function generateBillingDocument(billingData: BillingDataForExport)
         ],
       })
     )
+    children.push(buildReadingAndDueDateTable(billingData))
+    children.push(new Paragraph({ text: '', spacing: { after: 120 } }))
 
     children.push(
       new Paragraph({
@@ -156,11 +224,14 @@ export async function generateBillingDocument(billingData: BillingDataForExport)
       })
     )
     children.push(buildAmountTable(billingData))
-    children.push(new Paragraph({ text: '', spacing: { after: 160 } }))
-
+    children.push(new Paragraph({ text: '', spacing: { after: 120 } }))
+    children.push(createAmountDueParagraph('First Floor Amount Due', billingData.firstFloorAmount))
+    children.push(createAmountDueParagraph('Second Floor Amount Due', billingData.secondFloorAmount))
+    children.push(new Paragraph({ text: '--------------------------------------------------------------' }))
+    children.push(createAmountDueParagraph('Total Amount Due', billingData.amount, true))
+    children.push(new Paragraph({ text: '' }))
     children.push(new Paragraph({ text: `Prepared by: ${billingData.preparedBy}` }))
-    children.push(new Paragraph({ text: `Date: ${new Date().toLocaleDateString()}` }))
-    children.push(new Paragraph({ text: `Status: ${billingData.remarks}` }))
+    children.push(new Paragraph({ text: `Date Prepared: ${new Date().toLocaleDateString()}` }))
 
     if (copy < 3) {
       children.push(

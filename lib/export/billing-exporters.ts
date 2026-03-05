@@ -132,11 +132,6 @@ export async function exportBillingToPng(data: BillingDataForExport, filename: s
 }
 
 export async function exportBillingToPdf(data: BillingDataForExport, filename: string) {
-  const node = buildBillingPreviewElement(data)
-  document.body.appendChild(node)
-  const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
-  document.body.removeChild(node)
-
   const pdf = new jsPDF({
     orientation: 'portrait',
     unit: 'pt',
@@ -145,18 +140,32 @@ export async function exportBillingToPdf(data: BillingDataForExport, filename: s
 
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
-  const img = new Image()
+  const margin = 24
 
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve()
-    img.onerror = () => reject(new Error('Failed to render billing image'))
-    img.src = dataUrl
-  })
+  for (let copy = 1; copy <= 3; copy++) {
+    const node = buildBillingPreviewElement(data, 1)
+    document.body.appendChild(node)
+    const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
+    document.body.removeChild(node)
 
-  const ratio = Math.min(pageWidth / img.width, pageHeight / img.height)
-  const width = img.width * ratio
-  const height = img.height * ratio
-  pdf.addImage(dataUrl, 'PNG', (pageWidth - width) / 2, 24, width, height)
+    const img = new Image()
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('Failed to render billing image'))
+      img.src = dataUrl
+    })
+
+    const ratio = Math.min((pageWidth - margin * 2) / img.width, (pageHeight - margin * 2) / img.height)
+    const width = img.width * ratio
+    const height = img.height * ratio
+
+    if (copy > 1) {
+      pdf.addPage()
+    }
+
+    pdf.addImage(dataUrl, 'PNG', (pageWidth - width) / 2, margin, width, height)
+  }
+
   pdf.save(filename)
 }
 
