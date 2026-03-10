@@ -145,6 +145,23 @@ export function UtilitiesTracker() {
     }
   }
 
+  const getPreviousReading = (utility: any, list: any[]) => {
+    const currentTime = new Date(utility.date_of_reading).getTime()
+    const candidates = list
+      .filter(
+        (item) =>
+          item.id !== utility.id &&
+          item.type === utility.type &&
+          new Date(item.date_of_reading).getTime() < currentTime
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.date_of_reading).getTime() - new Date(a.date_of_reading).getTime()
+      )
+
+    return candidates[0] || null
+  }
+
   if (loading) {
     return <div className="text-center text-slate-400">Loading...</div>
   }
@@ -159,6 +176,7 @@ export function UtilitiesTracker() {
       const secondUnit = unitsById.get(pairing.second_unit_id)
       if (!firstUnit || !secondUnit) return null
 
+      const allUtilities = utilitiesMap.get(pairing.id) || []
       const utilities = (utilitiesMap.get(pairing.id) || [])
         .filter((utility: any) => {
           const readingDate = new Date(utility.date_of_reading)
@@ -240,6 +258,10 @@ export function UtilitiesTracker() {
                   const secondPayment = (utility.payments || []).find(
                     (payment: any) => payment.unit_id === secondUnit.id
                   )
+                  const previousReading = getPreviousReading(utility, allUtilities)
+                  const billingData = previousReading
+                    ? calculateBillingData(previousReading, utility, '', '')
+                    : null
 
                   return (
                     <div key={utility.id} className="p-4 bg-slate-700 rounded-lg border border-slate-600 space-y-3">
@@ -264,14 +286,7 @@ export function UtilitiesTracker() {
                         <div className="space-y-1 text-sm">
                           <p className="text-slate-400">First Floor Amount Due</p>
                           <p className="text-white font-medium">
-                            {(() => {
-                              const prev = utilities.find((u) => u.id !== utility.id && new Date(u.date_of_reading) < new Date(utility.date_of_reading))
-                              if (prev) {
-                                const bill = calculateBillingData(prev, utility, '', '')
-                                return `PHP ${bill.firstFloorAmount.toFixed(2)}`
-                              }
-                              return '-'
-                            })()}
+                            {billingData ? `PHP ${billingData.firstFloorAmount.toFixed(2)}` : '-'}
                           </p>
                           <p className="text-slate-400">
                             Status: {firstPayment?.paid ? 'Paid' : 'Not Paid'}
@@ -295,14 +310,7 @@ export function UtilitiesTracker() {
                         <div className="space-y-1 text-sm">
                           <p className="text-slate-400">Second Floor Amount Due</p>
                           <p className="text-white font-medium">
-                            {(() => {
-                              const prev = utilities.find((u) => u.id !== utility.id && new Date(u.date_of_reading) < new Date(utility.date_of_reading))
-                              if (prev) {
-                                const bill = calculateBillingData(prev, utility, '', '')
-                                return `PHP ${bill.secondFloorAmount.toFixed(2)}`
-                              }
-                              return '-'
-                            })()}
+                            {billingData ? `PHP ${billingData.secondFloorAmount.toFixed(2)}` : '-'}
                           </p>
                           <p className="text-slate-400">
                             Status: {secondPayment?.paid ? 'Paid' : 'Not Paid'}

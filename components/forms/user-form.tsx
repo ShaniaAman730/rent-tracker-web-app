@@ -34,6 +34,7 @@ export function UserForm({ open, onOpenChange, onSuccess }: UserFormProps) {
   const [role, setRole] = useState<'manager' | 'contributor'>('contributor')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const reset = () => {
     setEmail('')
@@ -41,15 +42,24 @@ export function UserForm({ open, onOpenChange, onSuccess }: UserFormProps) {
     setFullName('')
     setRole('contributor')
     setError(null)
+    setNotice(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setNotice(null)
     setLoading(true)
     try {
-      await createUserWithRole(email, password, fullName, role)
+      const result = await createUserWithRole(email, password, fullName, role)
       reset()
+      if (result.emailConfirmationRequired) {
+        setNotice(
+          'Confirmation sent via email. Once the user confirms, they will show up in the user list.'
+        )
+        onSuccess()
+        return
+      }
       onOpenChange(false)
       onSuccess()
     } catch (err) {
@@ -127,6 +137,12 @@ export function UserForm({ open, onOpenChange, onSuccess }: UserFormProps) {
           {error && (
             <div className="p-3 bg-red-900/20 border border-red-700 text-red-200 rounded text-sm">
               {error}
+            </div>
+          )}
+
+          {notice && (
+            <div className="p-3 bg-slate-700 border border-slate-600 text-slate-200 rounded text-sm">
+              {notice}
             </div>
           )}
 

@@ -130,12 +130,16 @@ export async function createUserWithRole(
   fullName: string,
   role: 'manager' | 'contributor'
 ) {
+  const {
+    data: { session: currentSession },
+  } = await supabase.auth.getSession()
+
   // use regular signUp; a manager must be logged in to call this
   const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { full_name: fullName },
+      data: { full_name: fullName, role },
     },
   })
   if (signUpError) throw signUpError
@@ -143,19 +147,32 @@ export async function createUserWithRole(
   const userId = signUpData.user?.id
   if (!userId) throw new Error('Failed to create new user')
 
-  const { data, error } = await supabase
-    .from('users')
-    .insert({
-      id: userId,
-      email,
-      full_name: fullName,
-      role,
+  if (currentSession) {
+    await supabase.auth.setSession({
+      access_token: currentSession.access_token,
+      refresh_token: currentSession.refresh_token,
     })
-    .select()
-    .single()
+  }
+
+  const { error } = await supabase
+    .from('users')
+    .upsert(
+      {
+        id: userId,
+        email,
+        full_name: fullName,
+        role,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' }
+    )
 
   if (error) throw error
-  return data
+
+  return {
+    userId,
+    emailConfirmationRequired: !signUpData.session,
+  }
 }
 
 export async function updateUserRole(userId: string, role: 'manager' | 'contributor') {

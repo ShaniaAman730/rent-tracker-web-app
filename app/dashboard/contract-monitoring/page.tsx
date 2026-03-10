@@ -416,6 +416,7 @@ export default function ContractMonitoringPage() {
         landlordIdIssuedDate: landlord.id_issued_date || null,
         landlordIdExpiryDate: landlord.id_expiry_date || null,
         propertyAddress: `${unit.name}, ${property.address}`,
+        officeAddress: property.office_address ?? null,
         year: contract.year,
         firstName: contract.first_name,
         middleName: contract.middle_name,

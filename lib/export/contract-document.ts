@@ -13,6 +13,7 @@ export interface ContractData {
   landlordIdIssuedDate: string | null
   landlordIdExpiryDate: string | null
   propertyAddress: string
+  officeAddress?: string | null
   year: number
   firstName: string
   middleName: string
@@ -160,6 +161,8 @@ function getContractBlocks(data: ContractData): Block[] {
   const tenantAcknowledgeName = toUpperInitialName(data.firstName, data.middleName, data.lastName)
   const rentText = `${toWords(data.rent)} PESOS (${formatCurrency(data.rent)})`
   const cashBondText = `${toWords(data.cashBond)} PESOS (${formatCurrency(data.cashBond)})`
+  const officeAddress =
+    data.officeAddress?.trim() || '65 Sacred Heart St., Zone 1, San Felipe, Naga City'
   const buildIdDescription = (
     personName: string,
     idType: string,
@@ -201,7 +204,7 @@ function getContractBlocks(data: ContractData): Block[] {
 
   const clauses: Block[] = [
     {
-      text: `1. That the monthly rental shall be ${rentText}, Philippine currency, to be paid by the LESSEE at the office of the LESSOR at 65 Sacred Heart St., Zone 1, San Felipe, Naga City, the rental for the first month to be paid upon signing of the herein contract and the rental for the subsequent months to be paid NOT LATER THAN THE FIRST FIVE (5) DAYS OF EACH CALENDAR MONTH without the necessity of express demand and without delay on any ground whatsoever, plus FIVE PERCENT (5%) surcharge/interest per month on all amounts due and in arrears reckoned from the time of default payment until fully paid.`,
+      text: `1. That the monthly rental shall be ${rentText}, Philippine currency, to be paid by the LESSEE at the office of the LESSOR at ${officeAddress}, the rental for the first month to be paid upon signing of the herein contract and the rental for the subsequent months to be paid NOT LATER THAN THE FIRST FIVE (5) DAYS OF EACH CALENDAR MONTH without the necessity of express demand and without delay on any ground whatsoever, plus FIVE PERCENT (5%) surcharge/interest per month on all amounts due and in arrears reckoned from the time of default payment until fully paid.`,
       align: 'justify',
       indentLeft: 900,
       indentHanging: 360,
@@ -390,7 +393,7 @@ function getContractBlocks(data: ContractData): Block[] {
     { text: 'W I T H N E S S E T H', align: 'center', bold: true },
     { text: '' },
     {
-      text: `The LESSOR hereby leases unto the LESSEE, and the latter hereby accepts in lease form the ${data.unitSpecification} of the ${data.propertySpecification} with exact postal address at ${data.propertyAddress}, Philippines, under the following terms & conditions.`,
+      text: `The LESSOR hereby leases unto the LESSEE, and the latter hereby accepts in lease form the ${data.unitSpecification} of the ${data.propertySpecification} with exact postal address at Door ${data.propertyAddress}, Philippines, under the following terms & conditions.`,
       align: 'justify',
       indentFirstLine: 720,
     },
