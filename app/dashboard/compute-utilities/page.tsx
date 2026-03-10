@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { getPropertiesWithUnits } from '@/lib/api/properties'
-import { getCurrentUser } from '@/lib/api/users'
+import { getCurrentUser, getUsersMapByIds } from '@/lib/api/users'
 import {
   deleteUtility,
   getUtilitiesWithPaymentsForPairings,
@@ -100,6 +100,7 @@ export default function ComputeUtilitiesPage() {
   const [loading, setLoading] = useState(true)
   const [pairUtilitiesLoading, setPairUtilitiesLoading] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [recordedByNames, setRecordedByNames] = useState<Map<string, string>>(new Map())
 
   const [selectedPairingId, setSelectedPairingId] = useState<string>('')
   const [newFirstUnitId, setNewFirstUnitId] = useState<string>('')
@@ -237,6 +238,11 @@ export default function ComputeUtilitiesPage() {
       const casureco = sortedByTypeAndDate('Casureco')
       setMnwdUtilities(mnwd)
       setCasurecoUtilities(casureco)
+
+      const userIds = utilities
+        .map((utility: any) => utility.recorded_by_user_id)
+        .filter(Boolean)
+      setRecordedByNames(await getUsersMapByIds(userIds))
     } catch (error) {
       console.error('Error loading paired utilities:', error)
     } finally {
@@ -309,6 +315,16 @@ export default function ComputeUtilitiesPage() {
   const previousMonth = () => setTrackerDate(new Date(trackerYear, trackerMonth - 1, 1))
   const nextMonth = () => setTrackerDate(new Date(trackerYear, trackerMonth + 1, 1))
 
+  const getOwnerName = (userId?: string | null) =>
+    (userId ? recordedByNames.get(userId) : null) || userId || 'Someone'
+
+  const canModify = (userId?: string | null) =>
+    currentUser?.role === 'manager' || userId === currentUser?.id
+
+  const showOwnershipMessage = (userId?: string | null) => {
+    alert(`${getOwnerName(userId)} is responsible for this entry. please contact them for any changes.`)
+  }
+
   async function handleAddPairing() {
     if (!newFirstUnitId || !newSecondUnitId) {
       alert('Select both units to pair.')
@@ -345,10 +361,14 @@ export default function ComputeUtilitiesPage() {
     }
   }
 
-  async function handleDeleteUtility(utilityId: string) {
+  async function handleDeleteUtility(utility: any) {
+    if (!canModify(utility?.recorded_by_user_id)) {
+      showOwnershipMessage(utility?.recorded_by_user_id)
+      return
+    }
     if (!confirm('Delete this utility record?')) return
     try {
-      await deleteUtility(utilityId)
+      await deleteUtility(utility.id)
       if (selectedPairingId) {
         await loadUtilitiesForSelectedPairing(selectedPairingId)
       }
@@ -666,10 +686,13 @@ export default function ComputeUtilitiesPage() {
                                   variant="outline"
                                   className="border-slate-600 text-slate-300 hover:bg-slate-700"
                                   onClick={() => {
+                                    if (!canModify(utility?.recorded_by_user_id)) {
+                                      showOwnershipMessage(utility?.recorded_by_user_id)
+                                      return
+                                    }
                                     setEditingUtility(utility)
                                     setFormOpen(true)
                                   }}
-                                  disabled={!canModify}
                                 >
                                   <Edit size={14} />
                                 </Button>
@@ -677,8 +700,7 @@ export default function ComputeUtilitiesPage() {
                                   size="icon"
                                   variant="outline"
                                   className="border-red-600/50 text-red-400 hover:bg-red-900/20"
-                                  onClick={() => handleDeleteUtility(utility.id)}
-                                  disabled={!canModify}
+                                  onClick={() => handleDeleteUtility(utility)}
                                 >
                                   <Trash2 size={14} />
                                 </Button>

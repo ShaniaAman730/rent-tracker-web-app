@@ -168,6 +168,16 @@ export default function ContractMonitoringPage() {
 
   const singleLandlord = useMemo(() => landlords[0] || null, [landlords])
 
+  const getOwnerName = (userId?: string | null) =>
+    (userId ? recordedByNames.get(userId) : null) || userId || 'Someone'
+
+  const canModify = (userId?: string | null) =>
+    currentUser?.role === 'manager' || userId === currentUser?.id
+
+  const showOwnershipMessage = (userId?: string | null) => {
+    alert(`${getOwnerName(userId)} is responsible for this entry. please contact them for any changes.`)
+  }
+
   function openCreateDialog(unit: any) {
     const unitTenants = tenantsByUnit.get(unit.id) || []
     const defaultTenant = unitTenants[0]
@@ -191,6 +201,10 @@ export default function ContractMonitoringPage() {
   }
 
   function openEditDialog(contract: any) {
+    if (!canModify(contract?.recorded_by_user_id)) {
+      showOwnershipMessage(contract?.recorded_by_user_id)
+      return
+    }
     setContractForm({
       unitId: contract.unit_id,
       tenantId: contract.tenant_id,
@@ -336,6 +350,10 @@ export default function ContractMonitoringPage() {
   }
 
   function openSigningDialog(contract: any) {
+    if (!canModify(contract?.recorded_by_user_id)) {
+      showOwnershipMessage(contract?.recorded_by_user_id)
+      return
+    }
     setTrackingContract(contract)
     setTrackingSigned(contract.signed ? 'true' : 'false')
     setTrackingComments(contract.comments || '')
@@ -367,6 +385,10 @@ export default function ContractMonitoringPage() {
   }
 
   async function handleDeleteTracking(contract: any) {
+    if (!canModify(contract?.recorded_by_user_id)) {
+      showOwnershipMessage(contract?.recorded_by_user_id)
+      return
+    }
     if (!confirm('Delete this contract tracking record?')) return
     if (!currentUser?.id) return
     try {
@@ -382,10 +404,14 @@ export default function ContractMonitoringPage() {
     }
   }
 
-  async function handleDeleteContract(contractId: string) {
+  async function handleDeleteContract(contract: any) {
+    if (!canModify(contract?.recorded_by_user_id)) {
+      showOwnershipMessage(contract?.recorded_by_user_id)
+      return
+    }
     if (!confirm('Delete this contract record?')) return
     try {
-      await deleteContract(contractId)
+      await deleteContract(contract.id)
       await loadData()
     } catch (error) {
       console.error('Error deleting contract:', error)
@@ -605,7 +631,7 @@ export default function ContractMonitoringPage() {
                               Export Word
                             </Button>
                             <Button
-                              onClick={() => handleDeleteContract(contract.id)}
+                              onClick={() => handleDeleteContract(contract)}
                               variant="outline"
                               className="border-red-600/50 text-red-400 hover:bg-red-900/20"
                             >

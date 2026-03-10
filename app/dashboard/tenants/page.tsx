@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { getPropertiesWithUnits } from '@/lib/api/properties'
 import { getTenantByUnit, deleteTenant } from '@/lib/api/tenants'
+import { getCurrentUser, getUsersMapByIds } from '@/lib/api/users'
 import { TenantForm } from '@/components/forms/tenant-form'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,8 @@ export default function TenantsPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [selectedUnit, setSelectedUnit] = useState<any>(null)
   const [selectedTenant, setSelectedTenant] = useState<any>(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [recordedByNames, setRecordedByNames] = useState<Map<string, string>>(new Map())
 
   useEffect(() => {
     loadData()
@@ -22,7 +25,8 @@ export default function TenantsPage() {
   async function loadData() {
     try {
       setLoading(true)
-      const props = await getPropertiesWithUnits()
+      const [user, props] = await Promise.all([getCurrentUser(), getPropertiesWithUnits()])
+      setCurrentUser(user)
 
       const propsWithTenants = await Promise.all(
         props.map(async (prop) => ({
@@ -37,6 +41,16 @@ export default function TenantsPage() {
       )
 
       setProperties(propsWithTenants)
+
+      const userIds: string[] = []
+      for (const prop of propsWithTenants) {
+        for (const unit of prop.units || []) {
+          if (unit.tenant?.recorded_by_user_id) {
+            userIds.push(unit.tenant.recorded_by_user_id)
+          }
+        }
+      }
+      setRecordedByNames(await getUsersMapByIds(userIds))
     } catch (error) {
       console.error('Error loading tenants:', error)
     } finally {
@@ -44,7 +58,26 @@ export default function TenantsPage() {
     }
   }
 
+  const getOwnerName = (userId?: string | null) =>
+    (userId ? recordedByNames.get(userId) : null) || userId || 'Someone'
+
+  const canModify = (userId?: string | null) =>
+    currentUser?.role === 'manager' || userId === currentUser?.id
+
+  const showOwnershipMessage = (userId?: string | null) => {
+    alert(`${getOwnerName(userId)} is responsible for this entry. please contact them for any changes.`)
+  }
+
   const handleDelete = async (tenantId: string) => {
+    const tenant = properties
+      .flatMap((prop) => prop.units || [])
+      .map((unit: any) => unit.tenant)
+      .find((item: any) => item?.id === tenantId)
+
+    if (tenant && !canModify(tenant.recorded_by_user_id)) {
+      showOwnershipMessage(tenant.recorded_by_user_id)
+      return
+    }
     if (!confirm('Are you sure you want to delete this tenant?')) return
 
     try {
@@ -56,6 +89,10 @@ export default function TenantsPage() {
   }
 
   const handleManageTenant = (unit: any, tenant: any | null) => {
+    if (tenant && !canModify(tenant.recorded_by_user_id)) {
+      showOwnershipMessage(tenant.recorded_by_user_id)
+      return
+    }
     setSelectedUnit(unit)
     setSelectedTenant(tenant)
     setFormOpen(true)

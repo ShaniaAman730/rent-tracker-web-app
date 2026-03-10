@@ -125,10 +125,20 @@ export function RentTracker() {
     setCurrentDate(new Date(parsed, currentDate.getMonth(), 1))
   }
 
-  const handleDeletePayment = async (paymentId: string) => {
+  const getOwnerName = (userId?: string | null) =>
+    (userId ? recordedByNames.get(userId) : null) || userId || 'Someone'
+
+  const canModify = (userId?: string | null) =>
+    currentUser?.role === 'manager' || userId === currentUser?.id
+
+  const handleDeletePayment = async (payment: any) => {
+    if (!canModify(payment?.recorded_by_user_id)) {
+      alert(`${getOwnerName(payment?.recorded_by_user_id)} is responsible for this entry. please contact them for any changes.`)
+      return
+    }
     if (!confirm('Delete this rent payment record?')) return
     try {
-      await deleteRentPayment(paymentId)
+      await deleteRentPayment(payment.id)
       await loadData()
     } catch (error) {
       console.error('Error deleting rent payment:', error)
@@ -262,7 +272,7 @@ export function RentTracker() {
                         </Button>
                         {payment && (
                           <Button
-                            onClick={() => handleDeletePayment(payment.id)}
+                            onClick={() => handleDeletePayment(payment)}
                             variant="outline"
                             size="icon"
                             className="border-red-600/50 text-red-400 hover:bg-red-900/20"

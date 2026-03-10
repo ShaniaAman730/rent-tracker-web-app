@@ -47,16 +47,12 @@ export async function getUsersMapByIds(ids: string[]) {
   if (ids.length === 0) return new Map<string, string>()
 
   const uniqueIds = Array.from(new Set(ids))
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, full_name, email, role')
-    .in('id', uniqueIds)
-
+  const { data, error } = await supabase.rpc('get_user_directory', { user_ids: uniqueIds })
   if (error) throw error
 
   const usersMap = new Map<string, string>()
-  ;(data || []).forEach((user) => {
-    usersMap.set(user.id, user.full_name || user.email || 'User')
+  ;(data || []).forEach((user: any) => {
+    usersMap.set(user.id, user.display_name || 'User')
   })
 
   return usersMap

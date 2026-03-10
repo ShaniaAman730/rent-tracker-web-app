@@ -135,7 +135,17 @@ export function UtilitiesTracker() {
     setCurrentDate(new Date(parsed, currentDate.getMonth(), 1))
   }
 
-  const handleDeletePayment = async (utilityId: string, unitId: string) => {
+  const getOwnerName = (userId?: string | null) =>
+    (userId ? recordedByNames.get(userId) : null) || userId || 'Someone'
+
+  const canModify = (userId?: string | null) =>
+    currentUser?.role === 'manager' || userId === currentUser?.id
+
+  const handleDeletePayment = async (utilityId: string, unitId: string, payment: any) => {
+    if (!canModify(payment?.recorded_by_user_id)) {
+      alert(`${getOwnerName(payment?.recorded_by_user_id)} is responsible for this entry. please contact them for any changes.`)
+      return
+    }
     if (!confirm('Delete this utility payment record?')) return
     try {
       await deleteUtilityPayment(utilityId, unitId)
@@ -341,7 +351,7 @@ export function UtilitiesTracker() {
                         </Button>
                         {firstPayment && (
                           <Button
-                            onClick={() => handleDeletePayment(utility.id, firstUnit.id)}
+                            onClick={() => handleDeletePayment(utility.id, firstUnit.id, firstPayment)}
                             variant="outline"
                             className="border-red-600/50 text-red-400 hover:bg-red-900/20 text-xs"
                           >
@@ -356,7 +366,7 @@ export function UtilitiesTracker() {
                         </Button>
                         {secondPayment && (
                           <Button
-                            onClick={() => handleDeletePayment(utility.id, secondUnit.id)}
+                            onClick={() => handleDeletePayment(utility.id, secondUnit.id, secondPayment)}
                             variant="outline"
                             className="border-red-600/50 text-red-400 hover:bg-red-900/20 text-xs"
                           >

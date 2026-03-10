@@ -30,6 +30,21 @@ AS $$
   );
 $$;
 
+-- public directory for display names (used by clients)
+CREATE OR REPLACE FUNCTION public.get_user_directory(user_ids uuid[])
+RETURNS TABLE (id uuid, display_name text)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    u.id,
+    COALESCE(u.full_name, u.email, 'User') AS display_name
+  FROM public.users u
+  WHERE auth.role() = 'authenticated'
+    AND u.id = ANY(user_ids);
+$$;
+
 -- Users table policies
 DROP POLICY IF EXISTS "Users can view their own record" ON public.users;
 DROP POLICY IF EXISTS "Users can update their own record" ON public.users;
