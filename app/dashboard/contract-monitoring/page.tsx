@@ -168,6 +168,16 @@ export default function ContractMonitoringPage() {
 
   const singleLandlord = useMemo(() => landlords[0] || null, [landlords])
 
+  const selectedPropertyForForm = useMemo(() => {
+    if (!contractForm.unitId) return null
+    for (const property of properties) {
+      if (property.units?.some((unit: any) => unit.id === contractForm.unitId)) {
+        return property
+      }
+    }
+    return null
+  }, [contractForm.unitId, properties])
+
   const getOwnerName = (userId?: string | null) =>
     (userId ? recordedByNames.get(userId) : null) || userId || 'Someone'
 
@@ -798,6 +808,16 @@ export default function ContractMonitoringPage() {
                 value={contractForm.tenantAddress}
                 onChange={(e) => setContractForm((prev) => ({ ...prev, tenantAddress: e.target.value }))}
                 className="mt-1 bg-slate-700 border-slate-600 text-white"
+              />
+            </div>
+
+            <div>
+              <Label className="text-slate-200">Office Address (from property)</Label>
+              <Input
+                value={selectedPropertyForForm?.office_address || ''}
+                readOnly
+                className="mt-1 bg-slate-700 border-slate-600 text-white"
+                placeholder="Set this on the property profile"
               />
             </div>
 

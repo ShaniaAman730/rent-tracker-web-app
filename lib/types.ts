@@ -10,6 +10,7 @@ export type RentalProperty = {
   id: string
   name: string
   address: string
+  office_address?: string | null
   code: string
   no_units: number
   created_at: string

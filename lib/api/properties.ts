@@ -27,6 +27,7 @@ export async function getPropertyById(id: string): Promise<RentalProperty | null
 export async function createProperty(
   name: string,
   address: string,
+  officeAddress: string | null,
   code: string,
   no_units: number,
   recordedByUserId?: string
@@ -34,6 +35,7 @@ export async function createProperty(
   const insertData: any = {
     name,
     address,
+    office_address: officeAddress,
     code,
     no_units,
   }

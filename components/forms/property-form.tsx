@@ -26,6 +26,7 @@ interface PropertyFormProps {
 export function PropertyForm({ open, onOpenChange, property, onSuccess }: PropertyFormProps) {
   const [name, setName] = useState(property?.name || '')
   const [address, setAddress] = useState(property?.address || '')
+  const [officeAddress, setOfficeAddress] = useState(property?.office_address || '')
   const [code, setCode] = useState(property?.code || '')
   const [noUnits, setNoUnits] = useState(property?.no_units.toString() || '')
   const [loading, setLoading] = useState(false)
@@ -34,6 +35,7 @@ export function PropertyForm({ open, onOpenChange, property, onSuccess }: Proper
   useEffect(() => {
     setName(property?.name || '')
     setAddress(property?.address || '')
+    setOfficeAddress(property?.office_address || '')
     setCode(property?.code || '')
     setNoUnits(property?.no_units?.toString() || '')
     setError(null)
@@ -49,16 +51,25 @@ export function PropertyForm({ open, onOpenChange, property, onSuccess }: Proper
         await updateProperty(property.id, {
           name,
           address,
+          office_address: officeAddress.trim() || null,
           code,
           no_units: parseInt(noUnits),
         })
       } else {
         const user = await getCurrentUser()
-        await createProperty(name, address, code, parseInt(noUnits), user?.id || undefined)
+        await createProperty(
+          name,
+          address,
+          officeAddress.trim() || null,
+          code,
+          parseInt(noUnits),
+          user?.id || undefined
+        )
       }
 
       setName('')
       setAddress('')
+      setOfficeAddress('')
       setCode('')
       setNoUnits('')
       onOpenChange(false)
@@ -110,6 +121,19 @@ export function PropertyForm({ open, onOpenChange, property, onSuccess }: Proper
               className="mt-1 bg-slate-700 border-slate-600 text-white"
               placeholder="e.g., 123 Main St, City"
               required
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="office_address" className="text-slate-200">
+              Office Address
+            </Label>
+            <Input
+              id="office_address"
+              value={officeAddress}
+              onChange={(e) => setOfficeAddress(e.target.value)}
+              className="mt-1 bg-slate-700 border-slate-600 text-white"
+              placeholder="e.g., 65 Sacred Heart St., Zone 1"
             />
           </div>
 
