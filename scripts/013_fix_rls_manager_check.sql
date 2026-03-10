@@ -1,18 +1,4 @@
--- Update RLS policies to enforce manager/contributor ownership rules
-
--- Ensure ownership columns exist on tables we reference
-ALTER TABLE public.rental_property
-  ADD COLUMN IF NOT EXISTS recorded_by_user_id UUID REFERENCES public.users(id);
-ALTER TABLE public.utility
-  ADD COLUMN IF NOT EXISTS recorded_by_user_id UUID REFERENCES public.users(id);
-ALTER TABLE public.rent_payment
-  ADD COLUMN IF NOT EXISTS recorded_by_user_id UUID REFERENCES public.users(id);
-ALTER TABLE public.tenant
-  ADD COLUMN IF NOT EXISTS recorded_by_user_id UUID REFERENCES public.users(id);
-ALTER TABLE public.contract
-  ADD COLUMN IF NOT EXISTS recorded_by_user_id UUID REFERENCES public.users(id);
-ALTER TABLE public.utility_payment
-  ADD COLUMN IF NOT EXISTS recorded_by_user_id UUID REFERENCES public.users(id);
+-- Fix manager RLS checks and ensure ownership defaults
 
 -- Ensure owner is set on new rows
 ALTER TABLE public.rental_property
@@ -80,10 +66,7 @@ CREATE POLICY "Managers can delete users" ON public.users
 
 -- Rental property
 DROP POLICY IF EXISTS "Authenticated users can view all rental properties" ON public.rental_property;
-DROP POLICY IF EXISTS "Managers or owners can view rental properties" ON public.rental_property;
 DROP POLICY IF EXISTS "Authenticated users can insert rental properties" ON public.rental_property;
-DROP POLICY IF EXISTS "Authenticated users can update rental properties" ON public.rental_property;
-DROP POLICY IF EXISTS "Authenticated users can delete rental properties" ON public.rental_property;
 DROP POLICY IF EXISTS "Managers or owners can update rental properties" ON public.rental_property;
 DROP POLICY IF EXISTS "Managers or owners can delete rental properties" ON public.rental_property;
 
@@ -114,10 +97,7 @@ CREATE POLICY "Managers or owners can delete rental properties" ON public.rental
 
 -- Utility
 DROP POLICY IF EXISTS "Authenticated users can view all utilities" ON public.utility;
-DROP POLICY IF EXISTS "Managers or owners can view utilities" ON public.utility;
 DROP POLICY IF EXISTS "Authenticated users can insert utilities" ON public.utility;
-DROP POLICY IF EXISTS "Authenticated users can update utilities" ON public.utility;
-DROP POLICY IF EXISTS "Authenticated users can delete utilities" ON public.utility;
 DROP POLICY IF EXISTS "Managers or owners can update utilities" ON public.utility;
 DROP POLICY IF EXISTS "Managers or owners can delete utilities" ON public.utility;
 
@@ -143,16 +123,12 @@ CREATE POLICY "Managers or owners can delete utilities" ON public.utility
     OR recorded_by_user_id = auth.uid()
   );
 
--- For tables that already store recorded_by_user_id we can use similar rules
-
 -- Rent payment
 DROP POLICY IF EXISTS "Authenticated users can view all rent payments" ON public.rent_payment;
-DROP POLICY IF EXISTS "Managers or owners can view rent payments" ON public.rent_payment;
 DROP POLICY IF EXISTS "Authenticated users can insert rent payments" ON public.rent_payment;
-DROP POLICY IF EXISTS "Authenticated users can update rent payments" ON public.rent_payment;
-DROP POLICY IF EXISTS "Authenticated users can delete rent payments" ON public.rent_payment;
 DROP POLICY IF EXISTS "Managers or owners can update rent payments" ON public.rent_payment;
 DROP POLICY IF EXISTS "Managers or owners can delete rent payments" ON public.rent_payment;
+
 CREATE POLICY "Authenticated users can view all rent payments" ON public.rent_payment
   FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Authenticated users can insert rent payments" ON public.rent_payment
@@ -175,17 +151,12 @@ CREATE POLICY "Managers or owners can delete rent payments" ON public.rent_payme
     OR recorded_by_user_id = auth.uid()
   );
 
--- Contract table policies
-DROP POLICY IF EXISTS "Authenticated users can view all contracts" ON public.contract;
-
 -- Tenant table policies
 DROP POLICY IF EXISTS "Authenticated users can view all tenants" ON public.tenant;
-DROP POLICY IF EXISTS "Managers or owners can view tenants" ON public.tenant;
 DROP POLICY IF EXISTS "Authenticated users can insert tenants" ON public.tenant;
-DROP POLICY IF EXISTS "Authenticated users can update tenants" ON public.tenant;
-DROP POLICY IF EXISTS "Authenticated users can delete tenants" ON public.tenant;
 DROP POLICY IF EXISTS "Managers or owners can update tenants" ON public.tenant;
 DROP POLICY IF EXISTS "Managers or owners can delete tenants" ON public.tenant;
+
 CREATE POLICY "Authenticated users can view all tenants" ON public.tenant
   FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Authenticated users can insert tenants" ON public.tenant
@@ -210,12 +181,10 @@ CREATE POLICY "Managers or owners can delete tenants" ON public.tenant
 
 -- Contract table policies
 DROP POLICY IF EXISTS "Authenticated users can view all contracts" ON public.contract;
-DROP POLICY IF EXISTS "Managers or owners can view contracts" ON public.contract;
 DROP POLICY IF EXISTS "Authenticated users can insert contracts" ON public.contract;
-DROP POLICY IF EXISTS "Authenticated users can update contracts" ON public.contract;
-DROP POLICY IF EXISTS "Authenticated users can delete contracts" ON public.contract;
 DROP POLICY IF EXISTS "Managers or owners can update contracts" ON public.contract;
 DROP POLICY IF EXISTS "Managers or owners can delete contracts" ON public.contract;
+
 CREATE POLICY "Authenticated users can view all contracts" ON public.contract
   FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Authenticated users can insert contracts" ON public.contract
@@ -240,12 +209,10 @@ CREATE POLICY "Managers or owners can delete contracts" ON public.contract
 
 -- Utility payment (similar rules)
 DROP POLICY IF EXISTS "Authenticated users can view all utility payments" ON public.utility_payment;
-DROP POLICY IF EXISTS "Managers or owners can view utility payments" ON public.utility_payment;
 DROP POLICY IF EXISTS "Authenticated users can insert utility payments" ON public.utility_payment;
-DROP POLICY IF EXISTS "Authenticated users can update utility payments" ON public.utility_payment;
-DROP POLICY IF EXISTS "Authenticated users can delete utility payments" ON public.utility_payment;
 DROP POLICY IF EXISTS "Managers or owners can update utility payments" ON public.utility_payment;
 DROP POLICY IF EXISTS "Managers or owners can delete utility payments" ON public.utility_payment;
+
 CREATE POLICY "Authenticated users can view all utility payments" ON public.utility_payment
   FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Authenticated users can insert utility payments" ON public.utility_payment
@@ -267,5 +234,3 @@ CREATE POLICY "Managers or owners can delete utility payments" ON public.utility
     public.is_manager()
     OR recorded_by_user_id = auth.uid()
   );
-
--- You can expand these rules for other tables similarly if needed
