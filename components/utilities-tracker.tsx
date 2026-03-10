@@ -188,10 +188,11 @@ export function UtilitiesTracker() {
         pairing,
         firstUnit,
         secondUnit,
+        allUtilities,
         utilities,
       }
     })
-    .filter((row): row is { pairing: any; firstUnit: any; secondUnit: any; utilities: any[] } =>
+    .filter((row): row is { pairing: any; firstUnit: any; secondUnit: any; utilities: any[]; allUtilities: any[] } =>
       Boolean(row && row.utilities.length > 0)
     )
 
@@ -244,7 +245,7 @@ export function UtilitiesTracker() {
         </Card>
       ) : (
         <div className="space-y-6">
-          {pairRows.map(({ pairing, firstUnit, secondUnit, utilities }) => (
+          {pairRows.map(({ pairing, firstUnit, secondUnit, utilities, allUtilities }) => (
             <Card key={pairing.id} className="p-4 sm:p-6 border-slate-700 bg-slate-800">
               <h2 className="text-xl font-semibold text-white mb-1">
                 Pair: {firstUnit.propertyCode} {firstUnit.name} (First Floor) + {secondUnit.propertyCode} {secondUnit.name} (Second Floor)
