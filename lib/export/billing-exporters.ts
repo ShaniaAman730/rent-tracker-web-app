@@ -18,12 +18,44 @@ function downloadBlob(blob: Blob, filename: string) {
 const tableStyle = 'width:100%; border-collapse:collapse; margin-bottom:16px; border:2px solid #000000;'
 const cellStyle = 'border:1px solid #000000; padding:6px;'
 
+function extractGoogleDriveFileId(input: string): string | null {
+  if (!input) return null
+  
+  // Handle embed code: <iframe src="https://drive.google.com/file/d/FILE_ID/preview">
+  const iframeMatch = input.match(/src="[^"]*\/file\/d\/([^\/]+)\//)
+  if (iframeMatch) return iframeMatch[1]
+  
+  // Handle direct URL: https://drive.google.com/file/d/FILE_ID/view
+  const urlMatch = input.match(/\/file\/d\/([^\/]+)\//)
+  if (urlMatch) return urlMatch[1]
+  
+  // Handle ?id=FILE_ID format
+  const idMatch = input.match(/[?&]id=([^&]+)/)
+  if (idMatch) return idMatch[1]
+  
+  return null
+}
+
 function getImageHtml(imageUrl: string | null, altText: string): string {
   if (!imageUrl) {
     return `<div style="display:flex; align-items:center; justify-content:center; width:100%; height:280px; background:#f0f0f0; border:1px solid #ccc; font-size:12px; color:#666; font-weight:bold;">${altText} not provided</div>`
   }
-  // Due to CORS restrictions, Google Drive images cannot be embedded in PDFs
-  // Show a placeholder instead - users can view images in the web interface
+  
+  // Try to extract file ID from embed code or URL
+  const fileId = extractGoogleDriveFileId(imageUrl)
+  
+  if (fileId) {
+    // Try to use Google Drive's thumbnail/export endpoints
+    const imageUrlAttempt = `https://drive.google.com/uc?id=${fileId}&export=view`
+    return `<img src="${imageUrlAttempt}" style="max-width:100%; max-height:280px; object-fit:contain;" alt="${altText}" onerror="this.style.display='none'" />`
+  }
+  
+  // If we have a regular URL, try to load it directly
+  if (imageUrl && !imageUrl.includes('<iframe')) {
+    return `<img src="${convertGoogleDriveUrlToEmbeddable(imageUrl)}" style="max-width:100%; max-height:280px; object-fit:contain;" alt="${altText}" onerror="this.style.display='none'" />`
+  }
+  
+  // Fallback placeholder
   return `<div style="display:flex; align-items:center; justify-content:center; flex-direction:column; width:100%; height:280px; background:#f5f5f5; border:2px dashed #999; font-size:11px; color:#666; padding:16px; text-align:center;">
     <div style="font-weight:bold; margin-bottom:8px;">📎 Image Available</div>
     <div style="font-size:10px; line-height:1.4;">${altText}<br/>Available in web interface</div>
@@ -145,9 +177,8 @@ export async function exportBillingToPng(data: BillingDataForExport, filename: s
     const node = buildBillingPreviewElement(data)
     document.body.appendChild(node)
     
-    // Don't wait for images since they'll fail CORS anyway
-    // Just render what we have (placeholders)
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // Wait for images to attempt loading (some may fail due to CORS, which is ok)
+    await new Promise(resolve => setTimeout(resolve, 1500))
     
     const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
     document.body.removeChild(node)
@@ -175,9 +206,8 @@ export async function exportBillingToPdf(data: BillingDataForExport, filename: s
     const node = buildBillingPreviewElement(data)
     document.body.appendChild(node)
     
-    // Don't wait for images since they'll fail CORS anyway
-    // Just render what we have (placeholders)
-    await new Promise(resolve => setTimeout(resolve, 500))
+    // Wait for images to attempt loading (some may fail due to CORS, which is ok)
+    await new Promise(resolve => setTimeout(resolve, 1500))
     
     const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
     document.body.removeChild(node)
