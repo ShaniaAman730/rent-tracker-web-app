@@ -96,10 +96,66 @@ function getPdfEmbedUrl(input: string | null | undefined): string | null {
   }
 }
 
-function getPdfEmbedSection(title: string, input: string | null | undefined): string {
-  const embedUrl = getPdfEmbedUrl(input)
+function getGoogleDriveImageCandidates(input: string | null | undefined): string[] {
+  if (!input) return []
 
-  if (!embedUrl) {
+  const fileId = extractGoogleDriveFileId(input)
+  if (!fileId) return []
+
+  return [
+    `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`,
+    `https://drive.google.com/uc?id=${fileId}&export=view`,
+    `https://lh3.googleusercontent.com/d/${fileId}=w1600`,
+  ]
+}
+
+async function tryFetchAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { mode: 'cors', credentials: 'omit' })
+    if (!response.ok) return null
+    const blob = await response.blob()
+    if (!blob.type.startsWith('image/')) return null
+
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : '')
+      reader.onerror = () => reject(reader.error)
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
+
+async function resolvePrintableImageSource(input: string | null | undefined): Promise<string | null> {
+  if (!input) return null
+
+  if (!input.includes('<iframe')) {
+    const converted = convertGoogleDriveUrlToEmbeddable(input)
+    if (converted) {
+      const dataUrl = await tryFetchAsDataUrl(converted)
+      if (dataUrl) return dataUrl
+    }
+  }
+
+  const candidates = getGoogleDriveImageCandidates(input)
+  for (const candidate of candidates) {
+    const dataUrl = await tryFetchAsDataUrl(candidate)
+    if (dataUrl) return dataUrl
+  }
+
+  return candidates[0] || convertGoogleDriveUrlToEmbeddable(input) || getPdfEmbedUrl(input)
+}
+
+function getPdfImageSection(
+  title: string,
+  imageSrc: string | null | undefined,
+  fallbackUrl: string | null | undefined
+): string {
+  const printableSrc = imageSrc ? escapeHtml(imageSrc) : null
+  const printableFallback = fallbackUrl ? escapeHtml(fallbackUrl) : null
+
+  if (!printableSrc && !printableFallback) {
     return `
       <section class="pdf-section">
         <h3>${escapeHtml(title)}</h3>
@@ -111,21 +167,30 @@ function getPdfEmbedSection(title: string, input: string | null | undefined): st
   return `
     <section class="pdf-section">
       <h3>${escapeHtml(title)}</h3>
-      <div class="embed-frame-wrap">
-        <iframe
-          src="${escapeHtml(embedUrl)}"
-          title="${escapeHtml(title)}"
-          class="embed-frame"
-          loading="eager"
-          referrerpolicy="no-referrer"
-        ></iframe>
+      <div class="embed-image-wrap">
+        ${
+          printableSrc
+            ? `<img src="${printableSrc}" alt="${escapeHtml(title)}" class="embed-image" />`
+            : `<div class="embed-placeholder">${escapeHtml(title)} preview unavailable</div>`
+        }
       </div>
-      <p class="embed-link">If the embed does not appear in print, open: ${escapeHtml(embedUrl)}</p>
+      ${
+        printableFallback
+          ? `<p class="embed-link">Source: ${printableFallback}</p>`
+          : ''
+      }
     </section>
   `
 }
 
-function buildBillingPdfHtml(data: BillingDataForExport, filename: string): string {
+async function buildBillingPdfHtml(data: BillingDataForExport, filename: string): Promise<string> {
+  const [readingPrintableSrc, billingPrintableSrc] = await Promise.all([
+    resolvePrintableImageSource(data.readingImageUrl),
+    resolvePrintableImageSource(data.billingImageUrl),
+  ])
+  const readingFallbackUrl = getPdfEmbedUrl(data.readingImageUrl)
+  const billingFallbackUrl = getPdfEmbedUrl(data.billingImageUrl)
+
   return `
     <!DOCTYPE html>
     <html>
@@ -133,12 +198,16 @@ function buildBillingPdfHtml(data: BillingDataForExport, filename: string): stri
         <meta charset="UTF-8">
         <title>${escapeHtml(filename)}</title>
         <style>
+          @page {
+            size: A4 portrait;
+            margin: 6mm;
+          }
           * {
             box-sizing: border-box;
           }
           body {
             margin: 0;
-            padding: 12mm;
+            padding: 0;
             font-family: Arial, sans-serif;
             color: #000;
             background: #fff;
@@ -148,29 +217,29 @@ function buildBillingPdfHtml(data: BillingDataForExport, filename: string): stri
             margin: 0 auto;
           }
           h1 {
-            margin: 0 0 4px 0;
-            font-size: 18px;
+            margin: 0 0 2px 0;
+            font-size: 14px;
             text-align: center;
           }
           .meta {
-            margin: 0 0 12px 0;
-            font-size: 12px;
+            margin: 0 0 6px 0;
+            font-size: 10px;
             text-align: center;
           }
           .section-title {
-            margin: 0 0 8px 0;
-            font-size: 14px;
+            margin: 0 0 4px 0;
+            font-size: 11px;
             font-weight: bold;
           }
           table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 12px;
+            margin-bottom: 6px;
           }
           th, td {
             border: 1px solid #000;
-            padding: 6px 8px;
-            font-size: 12px;
+            padding: 3px 5px;
+            font-size: 10px;
           }
           th {
             background: #f2f2f2;
@@ -179,56 +248,47 @@ function buildBillingPdfHtml(data: BillingDataForExport, filename: string): stri
           .text-right {
             text-align: right;
           }
-          .summary-line {
-            margin: 3px 0;
-            font-size: 12px;
-          }
-          .summary-total {
-            margin-top: 8px;
-            font-weight: bold;
-          }
           .pdf-section {
-            margin-top: 18px;
+            margin-top: 8px;
             page-break-inside: avoid;
           }
           .pdf-section h3 {
-            margin: 0 0 8px 0;
-            font-size: 14px;
+            margin: 0 0 4px 0;
+            font-size: 11px;
           }
-          .embed-frame-wrap {
+          .embed-image-wrap {
             border: 1px solid #000;
-            min-height: 520px;
+            height: 235px;
             overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
           }
-          .embed-frame {
+          .embed-image {
             width: 100%;
-            height: 520px;
-            border: 0;
+            height: 100%;
             display: block;
+            object-fit: contain;
+            background: #fff;
           }
           .embed-placeholder {
-            min-height: 180px;
+            width: 100%;
+            height: 100%;
             border: 1px dashed #777;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 10px;
             color: #555;
           }
           .embed-link {
-            margin: 8px 0 0 0;
-            font-size: 10px;
+            margin: 3px 0 0 0;
+            font-size: 8px;
             word-break: break-all;
           }
           @media print {
-            body {
-              padding: 8mm;
-            }
-            .embed-frame-wrap {
-              min-height: 480px;
-            }
-            .embed-frame {
-              height: 480px;
+            .page {
+              width: 100%;
             }
           }
         </style>
@@ -309,16 +369,10 @@ function buildBillingPdfHtml(data: BillingDataForExport, filename: string): stri
                 </tr>
               </tbody>
             </table>
-
-            <p class="summary-line">First Floor Amount Due: PHP ${data.firstFloorAmount.toFixed(2)}</p>
-            <p class="summary-line">Second Floor Amount Due: PHP ${data.secondFloorAmount.toFixed(2)}</p>
-            <p class="summary-line summary-total">Total Amount Due: PHP ${data.amount.toFixed(2)}</p>
-            <p class="summary-line">Prepared by: ${escapeHtml(data.preparedBy)}</p>
-            <p class="summary-line">Date Prepared: ${escapeHtml(new Date().toLocaleDateString())}</p>
           </section>
 
-          ${getPdfEmbedSection('Reading Image', data.readingImageUrl)}
-          ${getPdfEmbedSection('Billing Image', data.billingImageUrl)}
+          ${getPdfImageSection('Reading Image', readingPrintableSrc, readingFallbackUrl)}
+          ${getPdfImageSection('Billing Image', billingPrintableSrc, billingFallbackUrl)}
         </div>
       </body>
     </html>
@@ -459,7 +513,7 @@ export async function exportBillingToPdf(data: BillingDataForExport, filename: s
     if (!printWindow) {
       throw new Error('Could not open print window. Please disable popup blockers.')
     }
-    const printHtml = buildBillingPdfHtml(data, filename)
+    const printHtml = await buildBillingPdfHtml(data, filename)
 
     printWindow.document.open()
     printWindow.document.write(printHtml)
