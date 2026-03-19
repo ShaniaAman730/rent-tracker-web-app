@@ -47,6 +47,8 @@ export function AddUtilityDialog({
   const [firstFloorReading, setFirstFloorReading] = useState('')
   const [secondFloorReading, setSecondFloorReading] = useState('')
   const [amount, setAmount] = useState('')
+  const [readingImageUrl, setReadingImageUrl] = useState('')
+  const [billingImageUrl, setBillingImageUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -60,6 +62,8 @@ export function AddUtilityDialog({
       setFirstFloorReading(editingUtility.first_floor_reading?.toString() || '')
       setSecondFloorReading(editingUtility.second_floor_reading?.toString() || '')
       setAmount(editingUtility.amount?.toString() || '')
+      setReadingImageUrl(editingUtility.reading_image_url || '')
+      setBillingImageUrl(editingUtility.billing_image_url || '')
       return
     }
 
@@ -71,6 +75,8 @@ export function AddUtilityDialog({
     setFirstFloorReading('')
     setSecondFloorReading('')
     setAmount('')
+    setReadingImageUrl('')
+    setBillingImageUrl('')
     setError(null)
   }, [editingUtility, open, pairingId])
 
@@ -96,6 +102,8 @@ export function AddUtilityDialog({
           second_floor_reading: parseFloat(secondFloorReading),
           amount: parseFloat(amount),
           recorded_by_user_id: user?.id,
+          reading_image_url: readingImageUrl || null,
+          billing_image_url: billingImageUrl || null,
         })
       } else {
         await createUtility(
@@ -107,7 +115,9 @@ export function AddUtilityDialog({
           parseFloat(firstFloorReading),
           parseFloat(secondFloorReading),
           parseFloat(amount),
-          user?.id
+          user?.id,
+          readingImageUrl || null,
+          billingImageUrl || null
         )
       }
 
@@ -245,6 +255,40 @@ export function AddUtilityDialog({
               className="mt-1 bg-slate-700 border-slate-600 text-white"
               required
             />
+          </div>
+
+          <div className="border-t border-slate-600 pt-4">
+            <h3 className="text-sm font-semibold text-slate-300 mb-3">Supporting Images (Google Drive Links)</h3>
+          </div>
+
+          <div>
+            <Label htmlFor="reading_image_url" className="text-slate-200">
+              Reading Image URL
+            </Label>
+            <Input
+              id="reading_image_url"
+              type="text"
+              placeholder="https://drive.google.com/uc?id=..."
+              value={readingImageUrl}
+              onChange={(e) => setReadingImageUrl(e.target.value)}
+              className="mt-1 bg-slate-700 border-slate-600 text-white text-sm"
+            />
+            <p className="text-xs text-slate-400 mt-1">Link to Google Drive image of meter reading</p>
+          </div>
+
+          <div>
+            <Label htmlFor="billing_image_url" className="text-slate-200">
+              Billing Image URL
+            </Label>
+            <Input
+              id="billing_image_url"
+              type="text"
+              placeholder="https://drive.google.com/uc?id=..."
+              value={billingImageUrl}
+              onChange={(e) => setBillingImageUrl(e.target.value)}
+              className="mt-1 bg-slate-700 border-slate-600 text-white text-sm"
+            />
+            <p className="text-xs text-slate-400 mt-1">Link to Google Drive image of billing document</p>
           </div>
 
           {error && (

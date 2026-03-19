@@ -29,6 +29,8 @@ export interface BillingDataForExport extends BillingData {
   secondFloorPercentage: number
   firstFloorAmount: number
   secondFloorAmount: number
+  readingImageUrl?: string | null
+  billingImageUrl?: string | null
 }
 
 function getNonNegativeUsage(previousReading: number, currentReading: number): number {
@@ -79,6 +81,8 @@ export function calculateBillingData(
     secondFloorPercentage,
     firstFloorAmount,
     secondFloorAmount,
+    readingImageUrl: current.reading_image_url,
+    billingImageUrl: current.billing_image_url,
   }
 }
 

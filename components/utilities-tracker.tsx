@@ -342,6 +342,39 @@ export function UtilitiesTracker() {
                         </div>
                       </div>
 
+                      {/* Supporting Images */}
+                      {(utility.reading_image_url || utility.billing_image_url) && (
+                        <div className="mt-4 p-3 bg-slate-600/50 rounded border border-slate-600">
+                          <p className="text-sm font-medium text-slate-300 mb-2">Supporting Images:</p>
+                          <div className="space-y-1 text-sm">
+                            {utility.reading_image_url && (
+                              <p>
+                                <a
+                                  href={utility.reading_image_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:text-blue-300 underline"
+                                >
+                                  📸 View Reading Image
+                                </a>
+                              </p>
+                            )}
+                            {utility.billing_image_url && (
+                              <p>
+                                <a
+                                  href={utility.billing_image_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:text-blue-300 underline"
+                                >
+                                  📄 View Billing Image
+                                </a>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex flex-wrap gap-2">
                         <Button
                           onClick={() => setSelectedUtility({ utility, unit: firstUnit })}

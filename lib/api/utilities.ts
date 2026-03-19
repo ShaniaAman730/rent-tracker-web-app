@@ -50,7 +50,9 @@ export async function createUtility(
   firstFloorReading: number,
   secondFloorReading: number,
   amount: number,
-  recordedByUserId?: string
+  recordedByUserId?: string,
+  readingImageUrl?: string | null,
+  billingImageUrl?: string | null
 ): Promise<Utility> {
   const readingDate = new Date(dateOfReading)
   const monthStart = new Date(Date.UTC(readingDate.getUTCFullYear(), readingDate.getUTCMonth(), 1))
@@ -81,6 +83,8 @@ export async function createUtility(
     amount,
   }
   if (recordedByUserId) insertData.recorded_by_user_id = recordedByUserId
+  if (readingImageUrl) insertData.reading_image_url = readingImageUrl
+  if (billingImageUrl) insertData.billing_image_url = billingImageUrl
 
   const { data, error } = await supabase
     .from('utility')

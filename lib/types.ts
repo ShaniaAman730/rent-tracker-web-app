@@ -118,6 +118,8 @@ export type Utility = {
   second_floor_reading: number
   amount: number
   recorded_by_user_id?: string | null
+  reading_image_url?: string | null
+  billing_image_url?: string | null
   created_at: string
 }
 

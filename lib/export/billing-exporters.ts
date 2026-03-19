@@ -17,6 +17,11 @@ function downloadBlob(blob: Blob, filename: string) {
 const tableStyle = 'width:100%; border-collapse:collapse; margin-bottom:16px; border:2px solid #000000;'
 const cellStyle = 'border:1px solid #000000; padding:6px;'
 
+function getImageHtml(imageUrl: string | null, altText: string): string {
+  if (!imageUrl) return `<div style="display:flex; align-items:center; justify-content:center; width:100%; height:280px; background:#f0f0f0; border:1px solid #ccc; font-size:12px; color:#666;">[${altText} not provided]</div>`
+  return `<img src="${imageUrl}" alt="${altText}" style="max-width:100%; height:auto; max-height:280px; border:1px solid #000000;" />`
+}
+
 export function buildBillingPreviewElement(data: BillingDataForExport, copies = 3) {
   const wrapper = document.createElement('div')
   wrapper.style.width = '1200px'
@@ -24,6 +29,9 @@ export function buildBillingPreviewElement(data: BillingDataForExport, copies = 
   wrapper.style.color = '#000000'
   wrapper.style.padding = '24px'
   wrapper.style.fontFamily = 'Arial, sans-serif'
+
+  const readingImageHtml = getImageHtml(data.readingImageUrl, 'Reading Image')
+  const billingImageHtml = getImageHtml(data.billingImageUrl, 'Billing Image')
 
   const copyHtml = Array.from({ length: copies })
     .map(
@@ -111,7 +119,32 @@ export function buildBillingPreviewElement(data: BillingDataForExport, copies = 
           <span>PHP ${data.amount.toFixed(2)}</span>
         </div>
         <p style="margin:12px 0 4px 0;">Prepared by: ${data.preparedBy}</p>
-        <p style="margin:4px 0;">Date Prepared: ${new Date().toLocaleDateString()}</p>
+        <p style="margin:4px 0 12px 0;">Date Prepared: ${new Date().toLocaleDateString()}</p>
+        
+        <!-- Images Section -->
+        <div style="border-top:2px solid #000000; padding-top:12px; margin-top:12px;">
+          <h3 style="text-align:center; margin:0 0 12px 0; font-size:14px;">Supporting Documents</h3>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+            <div style="text-align:center;">
+              <div style="font-weight:bold; font-size:12px; margin-bottom:8px;">Reading Image</div>
+              ${readingImageHtml}
+            </div>
+            <div style="text-align:center;">
+              <div style="font-weight:bold; font-size:12px; margin-bottom:8px;">Reading Image</div>
+              ${readingImageHtml}
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div style="text-align:center;">
+              <div style="font-weight:bold; font-size:12px; margin-bottom:8px;">Billing Image</div>
+              ${billingImageHtml}
+            </div>
+            <div style="text-align:center;">
+              <div style="font-weight:bold; font-size:12px; margin-bottom:8px;">Billing Image</div>
+              ${billingImageHtml}
+            </div>
+          </div>
+        </div>
       </div>`
     )
     .join('')
