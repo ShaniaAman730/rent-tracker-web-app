@@ -357,7 +357,7 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
           }
           .embed-image-wrap {
             border: 1px solid #000;
-            height: 112px;
+            height: 132px;
             overflow: hidden;
             display: flex;
             align-items: center;
@@ -383,7 +383,7 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
           .prepared-line {
             margin: 5px 0 0 0;
             font-size: 9px;
-            text-align: center;
+            text-align: left;
           }
           @media print {
             .page {
