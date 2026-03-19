@@ -38,30 +38,34 @@ function extractGoogleDriveFileId(input: string): string | null {
 
 function getImageHtml(imageUrl: string | null, altText: string): string {
   if (!imageUrl) {
-    return `<div style="display:flex; align-items:center; justify-content:center; width:100%; height:140px; background:#f0f0f0; border:1px solid #ccc; font-size:11px; color:#666; font-weight:bold;">${altText} not provided</div>`
+    return `<div style="display:flex; align-items:center; justify-content:center; width:100%; height:200px; background:#f0f0f0; border:1px solid #ccc; font-size:11px; color:#666; font-weight:bold;">${altText} not provided</div>`
   }
   
-  // If it's an embed code (iframe), return it as-is so browser can render it
+  // If it's an embed code (iframe), extract the file ID and create an image URL
   if (imageUrl.includes('<iframe')) {
-    return imageUrl
+    const fileId = extractGoogleDriveFileId(imageUrl)
+    if (fileId) {
+      const imageUrlAttempt = `https://drive.google.com/uc?id=${fileId}&export=view`
+      return `<img src="${imageUrlAttempt}" style="max-width:100%; max-height:300px; object-fit:contain; display:block; margin:0 auto;" alt="${altText}" />`
+    }
   }
   
-  // Try to extract file ID from URL or embed code
+  // Try to extract file ID from URL
   const fileId = extractGoogleDriveFileId(imageUrl)
   
   if (fileId) {
-    // Try to use Google Drive's export endpoint for direct image viewing
+    // Use Google Drive's export endpoint for direct image viewing
     const imageUrlAttempt = `https://drive.google.com/uc?id=${fileId}&export=view`
-    return `<img src="${imageUrlAttempt}" style="max-width:100%; max-height:140px; object-fit:contain;" alt="${altText}" onerror="this.style.display='none'" />`
+    return `<img src="${imageUrlAttempt}" style="max-width:100%; max-height:300px; object-fit:contain; display:block; margin:0 auto;" alt="${altText}" />`
   }
   
   // If it's a regular URL, try to load it
   if (imageUrl) {
-    return `<img src="${convertGoogleDriveUrlToEmbeddable(imageUrl)}" style="max-width:100%; max-height:140px; object-fit:contain;" alt="${altText}" onerror="this.style.display='none'" />`
+    return `<img src="${convertGoogleDriveUrlToEmbeddable(imageUrl)}" style="max-width:100%; max-height:300px; object-fit:contain; display:block; margin:0 auto;" alt="${altText}" />`
   }
   
   // Fallback placeholder
-  return `<div style="display:flex; align-items:center; justify-content:center; flex-direction:column; width:100%; height:140px; background:#f5f5f5; border:2px dashed #999; font-size:10px; color:#666; padding:8px; text-align:center;">
+  return `<div style="display:flex; align-items:center; justify-content:center; flex-direction:column; width:100%; height:200px; background:#f5f5f5; border:2px dashed #999; font-size:10px; color:#666; padding:8px; text-align:center;">
     <div style="font-weight:bold; margin-bottom:4px;">📎 Image</div>
     <div style="font-size:9px; line-height:1.3;">Available in web</div>
   </div>`
@@ -153,17 +157,17 @@ export function buildBillingPreviewElement(data: BillingDataForExport) {
 
       <!-- READING IMAGE -->
       <div style="margin:4px 0 0 0; border-top:1px solid #000000; padding:4px 0 0 0;">
-        <div style="text-align:center; margin-bottom:3px;">
-          <div style="font-weight:bold; font-size:9px;">Reading</div>
-          <div style="height:140px; overflow:hidden;">
+        <div style="text-align:center; margin-bottom:6px;">
+          <div style="font-weight:bold; font-size:9px; margin-bottom:3px;">Reading</div>
+          <div style="width:600px; height:320px; margin:0 auto; overflow:hidden;">
             ${readingImageHtml}
           </div>
         </div>
 
         <!-- BILLING IMAGE -->
         <div style="text-align:center;">
-          <div style="font-weight:bold; font-size:9px;">Billing</div>
-          <div style="height:140px; overflow:hidden;">
+          <div style="font-weight:bold; font-size:9px; margin-bottom:3px;">Billing</div>
+          <div style="width:600px; height:320px; margin:0 auto; overflow:hidden;">
             ${billingImageHtml}
           </div>
         </div>
