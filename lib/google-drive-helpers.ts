@@ -8,7 +8,10 @@ export function convertGoogleDriveUrlToEmbeddable(url: string | null): string | 
   if (!url) return null
 
   try {
-    const urlObj = new URL(url)
+    const sourceUrl = extractUrlFromGoogleDriveInput(url)
+    if (!sourceUrl) return url
+
+    const urlObj = new URL(sourceUrl)
     const pathname = urlObj.pathname
 
     // Extract FILE_ID from /file/d/FILE_ID/view format
@@ -48,9 +51,8 @@ export function extractGoogleDriveFileId(urlOrEmbed: string | null): string | nu
   if (!urlOrEmbed) return null
 
   try {
-    // Try to extract from iframe embed code
-    const iframeMatch = urlOrEmbed.match(/src="([^"]*drive\.google\.com[^"]*)"/)
-    const sourceUrl = iframeMatch ? iframeMatch[1] : urlOrEmbed
+    const sourceUrl = extractUrlFromGoogleDriveInput(urlOrEmbed)
+    if (!sourceUrl) return null
 
     const urlObj = new URL(sourceUrl)
     const pathname = urlObj.pathname
@@ -72,4 +74,36 @@ export function extractGoogleDriveFileId(urlOrEmbed: string | null): string | nu
   } catch {
     return null
   }
+}
+
+function extractUrlFromGoogleDriveInput(input: string): string | null {
+  const trimmed = input.trim()
+
+  const iframeMatch = trimmed.match(/src=(['"])(.*?)\1/i)
+  if (iframeMatch?.[2]) {
+    return iframeMatch[2]
+  }
+
+  return trimmed
+}
+
+export function isGoogleDriveInput(input: string | null): boolean {
+  if (!input) return false
+
+  const sourceUrl = extractUrlFromGoogleDriveInput(input)
+  return Boolean(sourceUrl && sourceUrl.includes('drive.google.com'))
+}
+
+export function getGoogleDrivePreviewUrl(input: string | null): string | null {
+  const fileId = extractGoogleDriveFileId(input)
+  if (!fileId) return null
+
+  return `https://drive.google.com/file/d/${fileId}/preview`
+}
+
+export function getGoogleDriveOpenUrl(input: string | null): string | null {
+  const fileId = extractGoogleDriveFileId(input)
+  if (!fileId) return null
+
+  return `https://drive.google.com/file/d/${fileId}/view`
 }

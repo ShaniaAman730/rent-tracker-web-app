@@ -6,7 +6,12 @@ import { deleteUtilityPayment, getUtilitiesWithPaymentsForPairings } from '@/lib
 import { getCurrentUser, getUsersMapByIds } from '@/lib/api/users'
 import { getUnitPairings } from '@/lib/api/unit-pairings'
 import { calculateBillingData } from '@/lib/billing-helpers'
-import { convertGoogleDriveUrlToEmbeddable } from '@/lib/google-drive-helpers'
+import {
+  convertGoogleDriveUrlToEmbeddable,
+  getGoogleDriveOpenUrl,
+  getGoogleDrivePreviewUrl,
+  isGoogleDriveInput,
+} from '@/lib/google-drive-helpers'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
@@ -446,13 +451,26 @@ export function UtilitiesTracker() {
               <DialogTitle className="text-white">{viewingImage.type}</DialogTitle>
             </DialogHeader>
             <div className="flex flex-col items-center gap-4">
-              {viewingImage.url.includes('<iframe') || viewingImage.url.includes('preview') ? (
-                // Display embed code as iframe
-                <div
-                  className="w-full"
-                  dangerouslySetInnerHTML={{ __html: viewingImage.url }}
-                  style={{ minHeight: '600px' }}
-                />
+              {isGoogleDriveInput(viewingImage.url) ? (
+                <>
+                  <iframe
+                    src={getGoogleDrivePreviewUrl(viewingImage.url) ?? undefined}
+                    title={viewingImage.type}
+                    className="w-full min-h-[600px] rounded border border-slate-600 bg-slate-900"
+                    allow="autoplay"
+                  />
+                  {getGoogleDriveOpenUrl(viewingImage.url) && (
+                    <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
+                      <a
+                        href={getGoogleDriveOpenUrl(viewingImage.url) ?? '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Open in Google Drive
+                      </a>
+                    </Button>
+                  )}
+                </>
               ) : (
                 // Display URL as image
                 <div className="relative">
@@ -474,8 +492,8 @@ export function UtilitiesTracker() {
                             <div style="font-size:48px; margin-bottom:8px;">🔒</div>
                             <div style="font-weight:bold; font-size:16px; margin-bottom:8px;">Unable to Display Image</div>
                             <div style="font-size:14px; color:#cbd5e1;">
-                              Google Drive images cannot be displayed due to security restrictions.<br/>
-                              Click the button below to view in Google Drive.
+                              Unable to display this image in the app.<br/>
+                              Please verify the image URL is directly accessible.
                             </div>
                           </div>
                         `
