@@ -1,4 +1,3 @@
-import { jsPDF } from 'jspdf'
 import * as XLSX from 'xlsx'
 import { toPng } from 'html-to-image'
 import { BillingDataForExport } from '@/lib/billing-helpers'
@@ -14,9 +13,6 @@ function downloadBlob(blob: Blob, filename: string) {
   document.body.removeChild(anchor)
   URL.revokeObjectURL(url)
 }
-
-const tableStyle = 'width:100%; border-collapse:collapse; margin-bottom:16px; border:2px solid #000000;'
-const cellStyle = 'border:1px solid #000000; padding:6px;'
 
 function extractGoogleDriveFileId(input: string): string | null {
   if (!input) return null
@@ -69,6 +65,264 @@ function getImageHtml(imageUrl: string | null, altText: string): string {
     <div style="font-weight:bold; margin-bottom:4px;">📎 Image</div>
     <div style="font-size:9px; line-height:1.3;">Available in web</div>
   </div>`
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function getPdfEmbedUrl(input: string | null | undefined): string | null {
+  if (!input) return null
+
+  const iframeMatch = input.match(/src="([^"]+)"/i)
+  if (iframeMatch?.[1]) {
+    return iframeMatch[1]
+  }
+
+  const fileId = extractGoogleDriveFileId(input)
+  if (fileId) {
+    return `https://drive.google.com/file/d/${fileId}/preview`
+  }
+
+  try {
+    return new URL(input).toString()
+  } catch {
+    return null
+  }
+}
+
+function getPdfEmbedSection(title: string, input: string | null | undefined): string {
+  const embedUrl = getPdfEmbedUrl(input)
+
+  if (!embedUrl) {
+    return `
+      <section class="pdf-section">
+        <h3>${escapeHtml(title)}</h3>
+        <div class="embed-placeholder">${escapeHtml(title)} not provided</div>
+      </section>
+    `
+  }
+
+  return `
+    <section class="pdf-section">
+      <h3>${escapeHtml(title)}</h3>
+      <div class="embed-frame-wrap">
+        <iframe
+          src="${escapeHtml(embedUrl)}"
+          title="${escapeHtml(title)}"
+          class="embed-frame"
+          loading="eager"
+          referrerpolicy="no-referrer"
+        ></iframe>
+      </div>
+      <p class="embed-link">If the embed does not appear in print, open: ${escapeHtml(embedUrl)}</p>
+    </section>
+  `
+}
+
+function buildBillingPdfHtml(data: BillingDataForExport, filename: string): string {
+  return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>${escapeHtml(filename)}</title>
+        <style>
+          * {
+            box-sizing: border-box;
+          }
+          body {
+            margin: 0;
+            padding: 12mm;
+            font-family: Arial, sans-serif;
+            color: #000;
+            background: #fff;
+          }
+          .page {
+            max-width: 900px;
+            margin: 0 auto;
+          }
+          h1 {
+            margin: 0 0 4px 0;
+            font-size: 18px;
+            text-align: center;
+          }
+          .meta {
+            margin: 0 0 12px 0;
+            font-size: 12px;
+            text-align: center;
+          }
+          .section-title {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            font-weight: bold;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+          }
+          th, td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 12px;
+          }
+          th {
+            background: #f2f2f2;
+            text-align: left;
+          }
+          .text-right {
+            text-align: right;
+          }
+          .summary-line {
+            margin: 3px 0;
+            font-size: 12px;
+          }
+          .summary-total {
+            margin-top: 8px;
+            font-weight: bold;
+          }
+          .pdf-section {
+            margin-top: 18px;
+            page-break-inside: avoid;
+          }
+          .pdf-section h3 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+          }
+          .embed-frame-wrap {
+            border: 1px solid #000;
+            min-height: 520px;
+            overflow: hidden;
+          }
+          .embed-frame {
+            width: 100%;
+            height: 520px;
+            border: 0;
+            display: block;
+          }
+          .embed-placeholder {
+            min-height: 180px;
+            border: 1px dashed #777;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #555;
+          }
+          .embed-link {
+            margin: 8px 0 0 0;
+            font-size: 10px;
+            word-break: break-all;
+          }
+          @media print {
+            body {
+              padding: 8mm;
+            }
+            .embed-frame-wrap {
+              min-height: 480px;
+            }
+            .embed-frame {
+              height: 480px;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="page">
+          <h1>${escapeHtml(data.unitName)} (${escapeHtml(data.type)})</h1>
+          <p class="meta">
+            Reading: ${escapeHtml(new Date(data.currentDate).toLocaleDateString())}
+            |
+            Due: ${escapeHtml(new Date(data.dueDate).toLocaleDateString())}
+          </p>
+
+          <section>
+            <p class="section-title">Computation</p>
+            <table>
+              <thead>
+                <tr>
+                  <th>Location</th>
+                  <th class="text-right">Current</th>
+                  <th class="text-right">Previous</th>
+                  <th class="text-right">Usage</th>
+                  <th class="text-right">Percentage</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>First Floor</td>
+                  <td class="text-right">${data.currentFirstFloor.toFixed(2)}</td>
+                  <td class="text-right">${data.previousFirstFloor.toFixed(2)}</td>
+                  <td class="text-right">${data.firstFloorUsage.toFixed(2)}</td>
+                  <td class="text-right">${data.firstFloorPercentage.toFixed(2)}%</td>
+                </tr>
+                <tr>
+                  <td>Second Floor</td>
+                  <td class="text-right">${data.currentSecondFloor.toFixed(2)}</td>
+                  <td class="text-right">${data.previousSecondFloor.toFixed(2)}</td>
+                  <td class="text-right">${data.secondFloorUsage.toFixed(2)}</td>
+                  <td class="text-right">${data.secondFloorPercentage.toFixed(2)}%</td>
+                </tr>
+                <tr>
+                  <td><strong>TOTAL</strong></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-right"><strong>${data.totalUsage.toFixed(2)}</strong></td>
+                  <td class="text-right"><strong>100%</strong></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Location</th>
+                  <th class="text-right">Total Amount</th>
+                  <th class="text-right">Percentage</th>
+                  <th class="text-right">Amount per Location</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>First Floor</td>
+                  <td class="text-right">PHP ${data.amount.toFixed(2)}</td>
+                  <td class="text-right">${data.firstFloorPercentage.toFixed(2)}%</td>
+                  <td class="text-right">PHP ${data.firstFloorAmount.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td>Second Floor</td>
+                  <td class="text-right">PHP ${data.amount.toFixed(2)}</td>
+                  <td class="text-right">${data.secondFloorPercentage.toFixed(2)}%</td>
+                  <td class="text-right">PHP ${data.secondFloorAmount.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td><strong>TOTAL AMOUNT DUE</strong></td>
+                  <td></td>
+                  <td></td>
+                  <td class="text-right"><strong>PHP ${data.amount.toFixed(2)}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <p class="summary-line">First Floor Amount Due: PHP ${data.firstFloorAmount.toFixed(2)}</p>
+            <p class="summary-line">Second Floor Amount Due: PHP ${data.secondFloorAmount.toFixed(2)}</p>
+            <p class="summary-line summary-total">Total Amount Due: PHP ${data.amount.toFixed(2)}</p>
+            <p class="summary-line">Prepared by: ${escapeHtml(data.preparedBy)}</p>
+            <p class="summary-line">Date Prepared: ${escapeHtml(new Date().toLocaleDateString())}</p>
+          </section>
+
+          ${getPdfEmbedSection('Reading Image', data.readingImageUrl)}
+          ${getPdfEmbedSection('Billing Image', data.billingImageUrl)}
+        </div>
+      </body>
+    </html>
+  `
 }
 
 export function buildBillingPreviewElement(data: BillingDataForExport) {
@@ -201,85 +455,20 @@ export async function exportBillingToPng(data: BillingDataForExport, filename: s
 
 export async function exportBillingToPdf(data: BillingDataForExport, filename: string) {
   try {
-    // Build the complete HTML in current document first
-    const tempDiv = document.createElement('div')
-    const node = buildBillingPreviewElement(data)
-    tempDiv.appendChild(node)
-    document.body.appendChild(tempDiv)
-    
-    // Wait for images to load
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    // Get the inner HTML
-    const htmlContent = node.innerHTML
-    document.body.removeChild(tempDiv)
-    
-    // Open new window with printable HTML
     const printWindow = window.open('', '_blank')
     if (!printWindow) {
       throw new Error('Could not open print window. Please disable popup blockers.')
     }
-    
-    const printHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>${filename}</title>
-          <style>
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
-            }
-            body {
-              font-family: Arial, sans-serif;
-              background: white;
-              padding: 10mm;
-            }
-            @media print {
-              body {
-                padding: 5mm;
-              }
-              img {
-                max-width: 100%;
-                height: auto;
-                page-break-inside: avoid;
-              }
-            }
-            img {
-              max-width: 100%;
-              height: auto;
-              display: block;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-            }
-            td, th {
-              border: 1px solid #000;
-              padding: 2px 3px;
-            }
-          </style>
-        </head>
-        <body>
-          <div style="width: 100%; max-width: 900px; margin: 0 auto;">
-            ${htmlContent}
-          </div>
-        </body>
-      </html>
-    `
-    
+    const printHtml = buildBillingPdfHtml(data, filename)
+
     printWindow.document.open()
     printWindow.document.write(printHtml)
     printWindow.document.close()
-    
-    // Wait for content to render, then print
+
     setTimeout(() => {
       printWindow.focus()
       printWindow.print()
     }, 2000)
-    
   } catch (error) {
     console.error('Error exporting to PDF:', error)
     throw new Error('Failed to generate PDF. Please try again.')
