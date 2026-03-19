@@ -403,28 +403,30 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
 
 export function buildBillingPreviewElement(data: BillingDataForExport) {
   const wrapper = document.createElement('div')
-  wrapper.style.width = '1000px'
+  wrapper.style.width = '900px'
   wrapper.style.background = '#ffffff'
   wrapper.style.color = '#000000'
-  wrapper.style.padding = '16px'
+  wrapper.style.padding = '24px'
   wrapper.style.fontFamily = 'Arial, sans-serif'
-  wrapper.style.fontSize = '10px'
-
-  const readingImageHtml = getImageHtml(data.readingImageUrl, 'Reading')
-  const billingImageHtml = getImageHtml(data.billingImageUrl, 'Billing')
+  wrapper.style.fontSize = '12px'
 
   // Compact table styles for single page
-  const compactTableStyle = 'width:100%; border-collapse:collapse; margin-bottom:4px; border:1px solid #000000;'
-  const compactCellStyle = 'border:1px solid #000000; padding:2px 3px; font-size:9px;'
+  const compactTableStyle = 'width:100%; border-collapse:collapse; margin-bottom:10px; border:1px solid #000000;'
+  const compactCellStyle = 'border:1px solid #000000; padding:6px 8px; font-size:11px;'
 
   const html = `
-    <div style="border:1px solid #000000; padding:8px;">
-      <h2 style="text-align:center; margin:0 0 2px 0; font-size:12px; font-weight:bold;">${data.unitName} (${data.type})</h2>
-      <p style="text-align:center; margin:0 0 4px 0; font-size:8px; color:#666;">
-        Reading: ${new Date(data.currentDate).toLocaleDateString()} | Due: ${new Date(data.dueDate).toLocaleDateString()}
-      </p>
+    <div style="border:1px solid #000000; padding:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:12px; gap:16px;">
+        <div style="font-size:12px; font-weight:bold;">
+          Reading Date: ${new Date(data.currentDate).toLocaleDateString()}
+        </div>
+        <div style="font-size:12px; font-weight:bold; color:#c00000;">
+          Due Date: ${new Date(data.dueDate).toLocaleDateString()}
+        </div>
+      </div>
 
       <!-- COMPUTATION SECTION -->
+      <div style="margin:0 0 6px 0; font-size:12px; font-weight:bold;">Computation</div>
       <table style="${compactTableStyle}">
         <tr style="background:#f0f0f0;">
           <th style="${compactCellStyle}">Location</th>
@@ -483,24 +485,9 @@ export function buildBillingPreviewElement(data: BillingDataForExport) {
         </tr>
       </table>
 
-      <p style="margin:2px 0 1px 0; font-size:8px;">Prepared by: ${data.preparedBy} | Date: ${new Date().toLocaleDateString()}</p>
-
-      <!-- READING IMAGE -->
-      <div style="margin:4px 0 0 0; border-top:1px solid #000000; padding:4px 0 0 0;">
-        <div style="text-align:center; margin-bottom:6px;">
-          <div style="font-weight:bold; font-size:9px; margin-bottom:3px;">Reading</div>
-          <div style="width:600px; height:320px; margin:0 auto; overflow:hidden;">
-            ${readingImageHtml}
-          </div>
-        </div>
-
-        <!-- BILLING IMAGE -->
-        <div style="text-align:center;">
-          <div style="font-weight:bold; font-size:9px; margin-bottom:3px;">Billing</div>
-          <div style="width:600px; height:320px; margin:0 auto; overflow:hidden;">
-            ${billingImageHtml}
-          </div>
-        </div>
+      <div style="display:flex; justify-content:space-between; gap:16px; margin-top:14px; padding-top:10px; border-top:1px solid #000000; font-size:11px;">
+        <div><strong>Prepared by:</strong> ${data.preparedBy}</div>
+        <div><strong>Date Prepared:</strong> ${new Date().toLocaleDateString()}</div>
       </div>
     </div>
   `
