@@ -201,8 +201,18 @@ export async function exportBillingToPng(data: BillingDataForExport, filename: s
 
 export async function exportBillingToPdf(data: BillingDataForExport, filename: string) {
   try {
+    // Build the complete HTML in current document first
+    const tempDiv = document.createElement('div')
     const node = buildBillingPreviewElement(data)
-    const html = node.innerHTML
+    tempDiv.appendChild(node)
+    document.body.appendChild(tempDiv)
+    
+    // Wait for images to load
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    // Get the inner HTML
+    const htmlContent = node.innerHTML
+    document.body.removeChild(tempDiv)
     
     // Open new window with printable HTML
     const printWindow = window.open('', '_blank')
@@ -210,34 +220,63 @@ export async function exportBillingToPdf(data: BillingDataForExport, filename: s
       throw new Error('Could not open print window. Please disable popup blockers.')
     }
     
-    printWindow.document.write(`
+    const printHtml = `
       <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="UTF-8">
           <title>${filename}</title>
           <style>
-            body {
+            * {
               margin: 0;
-              padding: 20px;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
               font-family: Arial, sans-serif;
               background: white;
+              padding: 10mm;
             }
             @media print {
-              body { padding: 0; }
+              body {
+                padding: 5mm;
+              }
+              img {
+                max-width: 100%;
+                height: auto;
+                page-break-inside: avoid;
+              }
             }
-            img { max-width: 100%; height: auto; }
-            iframe { border: none; width: 100%; min-height: 300px; }
+            img {
+              max-width: 100%;
+              height: auto;
+              display: block;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            td, th {
+              border: 1px solid #000;
+              padding: 2px 3px;
+            }
           </style>
         </head>
         <body>
-          ${html}
+          <div style="width: 100%; max-width: 900px; margin: 0 auto;">
+            ${htmlContent}
+          </div>
         </body>
       </html>
-    `)
+    `
+    
+    printWindow.document.open()
+    printWindow.document.write(printHtml)
     printWindow.document.close()
     
-    // Wait for iframes/images to load before offering print
+    // Wait for content to render, then print
     setTimeout(() => {
+      printWindow.focus()
       printWindow.print()
     }, 2000)
     
