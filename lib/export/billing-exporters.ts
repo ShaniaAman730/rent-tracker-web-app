@@ -150,36 +150,25 @@ async function resolvePrintableImageSource(input: string | null | undefined): Pr
 function getPdfImageSection(
   title: string,
   imageSrc: string | null | undefined,
-  fallbackUrl: string | null | undefined
 ): string {
   const printableSrc = imageSrc ? escapeHtml(imageSrc) : null
-  const printableFallback = fallbackUrl ? escapeHtml(fallbackUrl) : null
 
-  if (!printableSrc && !printableFallback) {
+  if (!printableSrc) {
     return `
-      <section class="pdf-section">
-        <h3>${escapeHtml(title)}</h3>
+      <div class="image-panel">
+        <div class="image-label">${escapeHtml(title)}</div>
         <div class="embed-placeholder">${escapeHtml(title)} not provided</div>
-      </section>
+      </div>
     `
   }
 
   return `
-    <section class="pdf-section">
-      <h3>${escapeHtml(title)}</h3>
+    <div class="image-panel">
+      <div class="image-label">${escapeHtml(title)}</div>
       <div class="embed-image-wrap">
-        ${
-          printableSrc
-            ? `<img src="${printableSrc}" alt="${escapeHtml(title)}" class="embed-image" />`
-            : `<div class="embed-placeholder">${escapeHtml(title)} preview unavailable</div>`
-        }
+        <img src="${printableSrc}" alt="${escapeHtml(title)}" class="embed-image" />
       </div>
-      ${
-        printableFallback
-          ? `<p class="embed-link">Source: ${printableFallback}</p>`
-          : ''
-      }
-    </section>
+    </div>
   `
 }
 
@@ -188,8 +177,93 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
     resolvePrintableImageSource(data.readingImageUrl),
     resolvePrintableImageSource(data.billingImageUrl),
   ])
-  const readingFallbackUrl = getPdfEmbedUrl(data.readingImageUrl)
-  const billingFallbackUrl = getPdfEmbedUrl(data.billingImageUrl)
+  const copiesHtml = Array.from({ length: 2 }, (_, index) => `
+    <section class="copy-block ${index === 0 ? 'copy-first' : ''}">
+      <h1>${escapeHtml(data.unitName)} (${escapeHtml(data.type)})</h1>
+      <div class="meta-row">
+        <span>Reading Date: ${escapeHtml(new Date(data.currentDate).toLocaleDateString())}</span>
+        <span class="due-date">Due Date: ${escapeHtml(new Date(data.dueDate).toLocaleDateString())}</span>
+      </div>
+
+      <section>
+        <p class="section-title">Computation</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Location</th>
+              <th class="text-right">Current</th>
+              <th class="text-right">Previous</th>
+              <th class="text-right">Usage</th>
+              <th class="text-right">Percentage</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>First Floor</td>
+              <td class="text-right">${data.currentFirstFloor.toFixed(2)}</td>
+              <td class="text-right">${data.previousFirstFloor.toFixed(2)}</td>
+              <td class="text-right">${data.firstFloorUsage.toFixed(2)}</td>
+              <td class="text-right">${data.firstFloorPercentage.toFixed(2)}%</td>
+            </tr>
+            <tr>
+              <td>Second Floor</td>
+              <td class="text-right">${data.currentSecondFloor.toFixed(2)}</td>
+              <td class="text-right">${data.previousSecondFloor.toFixed(2)}</td>
+              <td class="text-right">${data.secondFloorUsage.toFixed(2)}</td>
+              <td class="text-right">${data.secondFloorPercentage.toFixed(2)}%</td>
+            </tr>
+            <tr>
+              <td><strong>TOTAL</strong></td>
+              <td></td>
+              <td></td>
+              <td class="text-right"><strong>${data.totalUsage.toFixed(2)}</strong></td>
+              <td class="text-right"><strong>100%</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Location</th>
+              <th class="text-right">Total Amount</th>
+              <th class="text-right">Percentage</th>
+              <th class="text-right">Amount per Location</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>First Floor</td>
+              <td class="text-right">PHP ${data.amount.toFixed(2)}</td>
+              <td class="text-right">${data.firstFloorPercentage.toFixed(2)}%</td>
+              <td class="text-right">PHP ${data.firstFloorAmount.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td>Second Floor</td>
+              <td class="text-right">PHP ${data.amount.toFixed(2)}</td>
+              <td class="text-right">${data.secondFloorPercentage.toFixed(2)}%</td>
+              <td class="text-right">PHP ${data.secondFloorAmount.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td><strong>TOTAL AMOUNT DUE</strong></td>
+              <td></td>
+              <td></td>
+              <td class="text-right"><strong>PHP ${data.amount.toFixed(2)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="photos-row">
+        ${getPdfImageSection('Reading Image', readingPrintableSrc)}
+        ${getPdfImageSection('Billing Image', billingPrintableSrc)}
+      </section>
+
+      <p class="prepared-line">
+        Prepared by: ${escapeHtml(data.preparedBy)} | Date Prepared: ${escapeHtml(new Date().toLocaleDateString())}
+      </p>
+    </section>
+  `).join('')
 
   return `
     <!DOCTYPE html>
@@ -216,15 +290,29 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
             max-width: 900px;
             margin: 0 auto;
           }
+          .copy-block {
+            page-break-inside: avoid;
+          }
+          .copy-first {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #000;
+          }
           h1 {
-            margin: 0 0 2px 0;
-            font-size: 14px;
+            margin: 0 0 3px 0;
+            font-size: 12px;
             text-align: center;
           }
-          .meta {
-            margin: 0 0 6px 0;
-            font-size: 10px;
+          .meta-row {
+            margin: 0 0 8px 0;
+            font-size: 9px;
             text-align: center;
+            display: flex;
+            justify-content: center;
+            gap: 28px;
+          }
+          .due-date {
+            color: #c00000;
           }
           .section-title {
             margin: 0 0 4px 0;
@@ -252,13 +340,24 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
             margin-top: 8px;
             page-break-inside: avoid;
           }
-          .pdf-section h3 {
-            margin: 0 0 4px 0;
-            font-size: 11px;
+          .photos-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-top: 6px;
+          }
+          .image-panel {
+            page-break-inside: avoid;
+          }
+          .image-label {
+            margin: 0 0 3px 0;
+            font-size: 9px;
+            font-weight: bold;
+            text-align: center;
           }
           .embed-image-wrap {
             border: 1px solid #000;
-            height: 235px;
+            height: 112px;
             overflow: hidden;
             display: flex;
             align-items: center;
@@ -281,10 +380,10 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
             font-size: 10px;
             color: #555;
           }
-          .embed-link {
-            margin: 3px 0 0 0;
-            font-size: 8px;
-            word-break: break-all;
+          .prepared-line {
+            margin: 5px 0 0 0;
+            font-size: 9px;
+            text-align: center;
           }
           @media print {
             .page {
@@ -295,84 +394,7 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
       </head>
       <body>
         <div class="page">
-          <h1>${escapeHtml(data.unitName)} (${escapeHtml(data.type)})</h1>
-          <p class="meta">
-            Reading: ${escapeHtml(new Date(data.currentDate).toLocaleDateString())}
-            |
-            Due: ${escapeHtml(new Date(data.dueDate).toLocaleDateString())}
-          </p>
-
-          <section>
-            <p class="section-title">Computation</p>
-            <table>
-              <thead>
-                <tr>
-                  <th>Location</th>
-                  <th class="text-right">Current</th>
-                  <th class="text-right">Previous</th>
-                  <th class="text-right">Usage</th>
-                  <th class="text-right">Percentage</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>First Floor</td>
-                  <td class="text-right">${data.currentFirstFloor.toFixed(2)}</td>
-                  <td class="text-right">${data.previousFirstFloor.toFixed(2)}</td>
-                  <td class="text-right">${data.firstFloorUsage.toFixed(2)}</td>
-                  <td class="text-right">${data.firstFloorPercentage.toFixed(2)}%</td>
-                </tr>
-                <tr>
-                  <td>Second Floor</td>
-                  <td class="text-right">${data.currentSecondFloor.toFixed(2)}</td>
-                  <td class="text-right">${data.previousSecondFloor.toFixed(2)}</td>
-                  <td class="text-right">${data.secondFloorUsage.toFixed(2)}</td>
-                  <td class="text-right">${data.secondFloorPercentage.toFixed(2)}%</td>
-                </tr>
-                <tr>
-                  <td><strong>TOTAL</strong></td>
-                  <td></td>
-                  <td></td>
-                  <td class="text-right"><strong>${data.totalUsage.toFixed(2)}</strong></td>
-                  <td class="text-right"><strong>100%</strong></td>
-                </tr>
-              </tbody>
-            </table>
-
-            <table>
-              <thead>
-                <tr>
-                  <th>Location</th>
-                  <th class="text-right">Total Amount</th>
-                  <th class="text-right">Percentage</th>
-                  <th class="text-right">Amount per Location</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>First Floor</td>
-                  <td class="text-right">PHP ${data.amount.toFixed(2)}</td>
-                  <td class="text-right">${data.firstFloorPercentage.toFixed(2)}%</td>
-                  <td class="text-right">PHP ${data.firstFloorAmount.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td>Second Floor</td>
-                  <td class="text-right">PHP ${data.amount.toFixed(2)}</td>
-                  <td class="text-right">${data.secondFloorPercentage.toFixed(2)}%</td>
-                  <td class="text-right">PHP ${data.secondFloorAmount.toFixed(2)}</td>
-                </tr>
-                <tr>
-                  <td><strong>TOTAL AMOUNT DUE</strong></td>
-                  <td></td>
-                  <td></td>
-                  <td class="text-right"><strong>PHP ${data.amount.toFixed(2)}</strong></td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
-
-          ${getPdfImageSection('Reading Image', readingPrintableSrc, readingFallbackUrl)}
-          ${getPdfImageSection('Billing Image', billingPrintableSrc, billingFallbackUrl)}
+          ${copiesHtml}
         </div>
       </body>
     </html>
