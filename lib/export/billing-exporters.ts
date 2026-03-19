@@ -22,8 +22,12 @@ function getImageHtml(imageUrl: string | null, altText: string): string {
   if (!imageUrl) {
     return `<div style="display:flex; align-items:center; justify-content:center; width:100%; height:280px; background:#f0f0f0; border:1px solid #ccc; font-size:12px; color:#666; font-weight:bold;">${altText} not provided</div>`
   }
-  const embeddableUrl = convertGoogleDriveUrlToEmbeddable(imageUrl)
-  return `<img src="${embeddableUrl}" alt="${altText}" style="max-width:100%; height:auto; max-height:280px; border:1px solid #000000; display:block;" />`
+  // Due to CORS restrictions, Google Drive images cannot be embedded in PDFs
+  // Show a placeholder instead - users can view images in the web interface
+  return `<div style="display:flex; align-items:center; justify-content:center; flex-direction:column; width:100%; height:280px; background:#f5f5f5; border:2px dashed #999; font-size:11px; color:#666; padding:16px; text-align:center;">
+    <div style="font-weight:bold; margin-bottom:8px;">📎 Image Available</div>
+    <div style="font-size:10px; line-height:1.4;">${altText}<br/>Available in web interface</div>
+  </div>`
 }
 
 export function buildBillingPreviewElement(data: BillingDataForExport, copies = 3) {
@@ -162,19 +166,9 @@ export async function exportBillingToPng(data: BillingDataForExport, filename: s
     const node = buildBillingPreviewElement(data, 1)
     document.body.appendChild(node)
     
-    // Wait for images to load with timeout
-    const images = node.querySelectorAll('img')
-    const imagePromises = Array.from(images).map(img => 
-      Promise.race([
-        new Promise<void>((resolve) => {
-          img.onload = () => resolve()
-          img.onerror = () => resolve() // Continue even if image fails to load
-          if (img.complete) resolve() // If already loaded
-        }),
-        new Promise<void>((resolve) => setTimeout(() => resolve(), 5000)) // 5 second timeout per image
-      ])
-    )
-    await Promise.all(imagePromises)
+    // Don't wait for images since they'll fail CORS anyway
+    // Just render what we have (placeholders)
+    await new Promise(resolve => setTimeout(resolve, 500))
     
     const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
     document.body.removeChild(node)
@@ -184,7 +178,7 @@ export async function exportBillingToPng(data: BillingDataForExport, filename: s
     downloadBlob(blob, filename)
   } catch (error) {
     console.error('Error exporting to PNG:', error)
-    throw new Error('Failed to generate PNG. Please check the image URLs and try again.')
+    throw new Error('Failed to generate PNG. Please try again.')
   }
 }
 
@@ -202,19 +196,9 @@ export async function exportBillingToPdf(data: BillingDataForExport, filename: s
     const node = buildBillingPreviewElement(data, 3)
     document.body.appendChild(node)
     
-    // Wait for images to load with timeout
-    const images = node.querySelectorAll('img')
-    const imagePromises = Array.from(images).map(img => 
-      Promise.race([
-        new Promise<void>((resolve) => {
-          img.onload = () => resolve()
-          img.onerror = () => resolve() // Continue even if image fails to load
-          if (img.complete) resolve() // If already loaded
-        }),
-        new Promise<void>((resolve) => setTimeout(() => resolve(), 5000)) // 5 second timeout per image
-      ])
-    )
-    await Promise.all(imagePromises)
+    // Don't wait for images since they'll fail CORS anyway
+    // Just render what we have (placeholders)
+    await new Promise(resolve => setTimeout(resolve, 500))
     
     const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
     document.body.removeChild(node)
@@ -234,7 +218,7 @@ export async function exportBillingToPdf(data: BillingDataForExport, filename: s
     pdf.save(filename)
   } catch (error) {
     console.error('Error exporting to PDF:', error)
-    throw new Error('Failed to generate PDF. Please check the image URLs and ensure they are accessible.')
+    throw new Error('Failed to generate PDF. Please try again.')
   }
 }
 

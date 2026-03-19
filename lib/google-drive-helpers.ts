@@ -15,18 +15,24 @@ export function convertGoogleDriveUrlToEmbeddable(url: string | null): string | 
     const fileMatch = pathname.match(/\/file\/d\/([^/]+)/)
     if (fileMatch) {
       const fileId = fileMatch[1]
-      return `https://drive.google.com/uc?id=${fileId}&export=download`
+      // Use export=view for better image display in HTML
+      const convertedUrl = `https://drive.google.com/uc?id=${fileId}&export=view`
+      console.log(`[Google Drive] Converted URL ending in: ...${fileId}`)
+      return convertedUrl
     }
 
     // Already in uc format or similar
     if (url.includes('drive.google.com/uc?id=')) {
+      console.log(`[Google Drive] URL already in uc format`)
       return url
     }
 
     // Return original if we can't parse it
+    console.warn(`[Google Drive] Could not parse URL`)
     return url
   } catch {
     // If URL parsing fails, return original
+    console.error(`[Google Drive] URL parsing error`)
     return url
   }
 }
