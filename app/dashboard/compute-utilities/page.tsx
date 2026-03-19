@@ -676,7 +676,7 @@ export default function ComputeUtilitiesPage() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                           {(() => {
-                            const canModify =
+                            const userCanModify =
                               currentUser?.role === 'manager' ||
                               utility.recorded_by_user_id === currentUser?.id
                             return (
@@ -686,7 +686,7 @@ export default function ComputeUtilitiesPage() {
                                   variant="outline"
                                   className="border-slate-600 text-slate-300 hover:bg-slate-700"
                                   onClick={() => {
-                                    if (!canModify(utility?.recorded_by_user_id)) {
+                                    if (!userCanModify) {
                                       showOwnershipMessage(utility?.recorded_by_user_id)
                                       return
                                     }

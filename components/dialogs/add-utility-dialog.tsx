@@ -142,7 +142,7 @@ export function AddUtilityDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 max-h-96 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[500px] overflow-y-auto">
           <div>
             <Label className="text-slate-200">Pair</Label>
             <Input value={pairLabel || ''} readOnly className="mt-1 bg-slate-700 border-slate-600 text-white" />
