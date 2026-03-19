@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf'
 import * as XLSX from 'xlsx'
 import { toPng } from 'html-to-image'
 import { BillingDataForExport } from '@/lib/billing-helpers'
+import { convertGoogleDriveUrlToEmbeddable } from '@/lib/google-drive-helpers'
 
 function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
@@ -18,8 +19,11 @@ const tableStyle = 'width:100%; border-collapse:collapse; margin-bottom:16px; bo
 const cellStyle = 'border:1px solid #000000; padding:6px;'
 
 function getImageHtml(imageUrl: string | null, altText: string): string {
-  if (!imageUrl) return `<div style="display:flex; align-items:center; justify-content:center; width:100%; height:280px; background:#f0f0f0; border:1px solid #ccc; font-size:12px; color:#666;">[${altText} not provided]</div>`
-  return `<img src="${imageUrl}" alt="${altText}" style="max-width:100%; height:auto; max-height:280px; border:1px solid #000000;" />`
+  if (!imageUrl) {
+    return `<div style="display:flex; align-items:center; justify-content:center; width:100%; height:280px; background:#f0f0f0; border:1px solid #ccc; font-size:12px; color:#666; font-weight:bold;">${altText} not provided</div>`
+  }
+  const embeddableUrl = convertGoogleDriveUrlToEmbeddable(imageUrl)
+  return `<img src="${embeddableUrl}" alt="${altText}" style="max-width:100%; height:auto; max-height:280px; border:1px solid #000000; display:block;" />`
 }
 
 export function buildBillingPreviewElement(data: BillingDataForExport, copies = 3) {
@@ -154,44 +158,84 @@ export function buildBillingPreviewElement(data: BillingDataForExport, copies = 
 }
 
 export async function exportBillingToPng(data: BillingDataForExport, filename: string) {
-  const node = buildBillingPreviewElement(data, 1)
-  document.body.appendChild(node)
-  const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
-  document.body.removeChild(node)
+  try {
+    const node = buildBillingPreviewElement(data, 1)
+    document.body.appendChild(node)
+    
+    // Wait for images to load with timeout
+    const images = node.querySelectorAll('img')
+    const imagePromises = Array.from(images).map(img => 
+      Promise.race([
+        new Promise<void>((resolve) => {
+          img.onload = () => resolve()
+          img.onerror = () => resolve() // Continue even if image fails to load
+          if (img.complete) resolve() // If already loaded
+        }),
+        new Promise<void>((resolve) => setTimeout(() => resolve(), 5000)) // 5 second timeout per image
+      ])
+    )
+    await Promise.all(imagePromises)
+    
+    const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
+    document.body.removeChild(node)
 
-  const response = await fetch(dataUrl)
-  const blob = await response.blob()
-  downloadBlob(blob, filename)
+    const response = await fetch(dataUrl)
+    const blob = await response.blob()
+    downloadBlob(blob, filename)
+  } catch (error) {
+    console.error('Error exporting to PNG:', error)
+    throw new Error('Failed to generate PNG. Please check the image URLs and try again.')
+  }
 }
 
 export async function exportBillingToPdf(data: BillingDataForExport, filename: string) {
-  const pdf = new jsPDF({
-    orientation: 'portrait',
-    unit: 'pt',
-    format: 'a4',
-  })
+  try {
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'a4',
+    })
 
-  const pageWidth = pdf.internal.pageSize.getWidth()
-  const pageHeight = pdf.internal.pageSize.getHeight()
-  const margin = 24
-  const node = buildBillingPreviewElement(data, 3)
-  document.body.appendChild(node)
-  const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
-  document.body.removeChild(node)
+    const pageWidth = pdf.internal.pageSize.getWidth()
+    const pageHeight = pdf.internal.pageSize.getHeight()
+    const margin = 24
+    const node = buildBillingPreviewElement(data, 3)
+    document.body.appendChild(node)
+    
+    // Wait for images to load with timeout
+    const images = node.querySelectorAll('img')
+    const imagePromises = Array.from(images).map(img => 
+      Promise.race([
+        new Promise<void>((resolve) => {
+          img.onload = () => resolve()
+          img.onerror = () => resolve() // Continue even if image fails to load
+          if (img.complete) resolve() // If already loaded
+        }),
+        new Promise<void>((resolve) => setTimeout(() => resolve(), 5000)) // 5 second timeout per image
+      ])
+    )
+    await Promise.all(imagePromises)
+    
+    const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
+    document.body.removeChild(node)
 
-  const img = new Image()
-  await new Promise<void>((resolve, reject) => {
-    img.onload = () => resolve()
-    img.onerror = () => reject(new Error('Failed to render billing image'))
-    img.src = dataUrl
-  })
+    const img = new Image()
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('Failed to render billing document'))
+      img.src = dataUrl
+    })
 
-  const ratio = Math.min((pageWidth - margin * 2) / img.width, (pageHeight - margin * 2) / img.height)
-  const width = img.width * ratio
-  const height = img.height * ratio
-  pdf.addImage(dataUrl, 'PNG', (pageWidth - width) / 2, margin, width, height)
+    const ratio = Math.min((pageWidth - margin * 2) / img.width, (pageHeight - margin * 2) / img.height)
+    const width = img.width * ratio
+    const height = img.height * ratio
+    pdf.addImage(dataUrl, 'PNG', (pageWidth - width) / 2, margin, width, height)
 
-  pdf.save(filename)
+    pdf.save(filename)
+  } catch (error) {
+    console.error('Error exporting to PDF:', error)
+    throw new Error('Failed to generate PDF. Please check the image URLs and ensure they are accessible.')
+  }
 }
 
 export function exportBillingToExcel(data: BillingDataForExport, filename: string) {

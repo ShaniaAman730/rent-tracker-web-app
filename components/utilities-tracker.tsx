@@ -6,12 +6,19 @@ import { deleteUtilityPayment, getUtilitiesWithPaymentsForPairings } from '@/lib
 import { getCurrentUser, getUsersMapByIds } from '@/lib/api/users'
 import { getUnitPairings } from '@/lib/api/unit-pairings'
 import { calculateBillingData } from '@/lib/billing-helpers'
+import { convertGoogleDriveUrlToEmbeddable } from '@/lib/google-drive-helpers'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { UtilityPaymentDialog } from '@/components/dialogs/utility-payment-dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 const MONTH_OPTIONS = [
   { value: 0, label: 'January' },
@@ -38,6 +45,7 @@ export function UtilitiesTracker() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [selectedUtility, setSelectedUtility] = useState<{ utility: any; unit: any } | null>(null)
   const [recordedByNames, setRecordedByNames] = useState<Map<string, string>>(new Map())
+  const [viewingImage, setViewingImage] = useState<{ url: string; type: string } | null>(null)
 
   useEffect(() => {
     loadData()
@@ -346,30 +354,24 @@ export function UtilitiesTracker() {
                       {(utility.reading_image_url || utility.billing_image_url) && (
                         <div className="mt-4 p-3 bg-slate-600/50 rounded border border-slate-600">
                           <p className="text-sm font-medium text-slate-300 mb-2">Supporting Images:</p>
-                          <div className="space-y-1 text-sm">
+                          <div className="flex flex-wrap gap-2">
                             {utility.reading_image_url && (
-                              <p>
-                                <a
-                                  href={utility.reading_image_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-400 hover:text-blue-300 underline"
-                                >
-                                  📸 View Reading Image
-                                </a>
-                              </p>
+                              <Button
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                                onClick={() => setViewingImage({ url: utility.reading_image_url, type: 'Reading Image' })}
+                              >
+                                📸 View Reading Image
+                              </Button>
                             )}
                             {utility.billing_image_url && (
-                              <p>
-                                <a
-                                  href={utility.billing_image_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-400 hover:text-blue-300 underline"
-                                >
-                                  📄 View Billing Image
-                                </a>
-                              </p>
+                              <Button
+                                size="sm"
+                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                                onClick={() => setViewingImage({ url: utility.billing_image_url, type: 'Billing Image' })}
+                              >
+                                📄 View Billing Image
+                              </Button>
                             )}
                           </div>
                         </div>
@@ -430,6 +432,37 @@ export function UtilitiesTracker() {
           onClose={() => setSelectedUtility(null)}
           onPaymentRecorded={handlePaymentRecorded}
         />
+      )}
+
+      {/* Image Viewing Modal */}
+      {viewingImage && (
+        <Dialog open onOpenChange={() => setViewingImage(null)}>
+          <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-white">{viewingImage.type}</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-4">
+              <img
+                src={convertGoogleDriveUrlToEmbeddable(viewingImage.url)}
+                alt={viewingImage.type}
+                className="max-w-full max-h-[600px] rounded border border-slate-600"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement
+                  target.style.display = 'none'
+                }}
+              />
+              <Button
+                asChild
+                variant="outline"
+                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              >
+                <a href={viewingImage.url} target="_blank" rel="noopener noreferrer">
+                  Open Original Link
+                </a>
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   )

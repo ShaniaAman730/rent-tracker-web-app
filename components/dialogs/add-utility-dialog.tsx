@@ -259,6 +259,11 @@ export function AddUtilityDialog({
 
           <div className="border-t border-slate-600 pt-4">
             <h3 className="text-sm font-semibold text-slate-300 mb-3">Supporting Images (Google Drive Links)</h3>
+            <p className="text-xs text-slate-400 mb-3">
+              Paste shareable Google Drive links. Both formats work:
+              <br />• Share link: <code className="text-slate-300">https://drive.google.com/file/d/FILE_ID/view</code>
+              <br />• Direct link: <code className="text-slate-300">https://drive.google.com/uc?id=FILE_ID</code>
+            </p>
           </div>
 
           <div>
