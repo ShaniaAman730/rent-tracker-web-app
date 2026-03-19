@@ -38,16 +38,25 @@ export function convertGoogleDriveUrlToEmbeddable(url: string | null): string | 
 }
 
 /**
- * Extract Google Drive file ID from various URL formats
+ * Extract Google Drive file ID from embed code or URL
+ * Supports:
+ * - Embed code: <iframe src="...drive.google.com/file/d/FILE_ID/preview..."></iframe>
+ * - Share link: https://drive.google.com/file/d/FILE_ID/view
+ * - Direct: https://drive.google.com/uc?id=FILE_ID
  */
-export function extractGoogleDriveFileId(url: string | null): string | null {
-  if (!url) return null
+export function extractGoogleDriveFileId(urlOrEmbed: string | null): string | null {
+  if (!urlOrEmbed) return null
 
   try {
-    const urlObj = new URL(url)
-    
-    // Format: /file/d/FILE_ID/view
-    const fileMatch = urlObj.pathname.match(/\/file\/d\/([^/]+)/)
+    // Try to extract from iframe embed code
+    const iframeMatch = urlOrEmbed.match(/src="([^"]*drive\.google\.com[^"]*)"/)
+    const sourceUrl = iframeMatch ? iframeMatch[1] : urlOrEmbed
+
+    const urlObj = new URL(sourceUrl)
+    const pathname = urlObj.pathname
+
+    // Format: /file/d/FILE_ID/view or /file/d/FILE_ID/preview
+    const fileMatch = pathname.match(/\/file\/d\/([^/]+)/)
     if (fileMatch) {
       return fileMatch[1]
     }

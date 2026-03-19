@@ -30,140 +30,119 @@ function getImageHtml(imageUrl: string | null, altText: string): string {
   </div>`
 }
 
-export function buildBillingPreviewElement(data: BillingDataForExport, copies = 3) {
+export function buildBillingPreviewElement(data: BillingDataForExport) {
   const wrapper = document.createElement('div')
-  wrapper.style.width = '1200px'
+  wrapper.style.width = '1000px'
   wrapper.style.background = '#ffffff'
   wrapper.style.color = '#000000'
-  wrapper.style.padding = '24px'
+  wrapper.style.padding = '20px'
   wrapper.style.fontFamily = 'Arial, sans-serif'
+  wrapper.style.fontSize = '11px'
 
-  const readingImageHtml = getImageHtml(data.readingImageUrl, 'Reading Image')
-  const billingImageHtml = getImageHtml(data.billingImageUrl, 'Billing Image')
+  const readingImageHtml = getImageHtml(data.readingImageUrl, 'Reading')
+  const billingImageHtml = getImageHtml(data.billingImageUrl, 'Billing')
 
-  const copyHtml = Array.from({ length: copies })
-    .map(
-      (_, idx) => `
-      <div style="margin-bottom:${idx === copies - 1 ? 0 : 32}px; border:1px solid #e5e7eb; padding:16px;">
-        <h2 style="text-align:center; margin:0 0 8px 0;">${data.unitName} (${data.type}) - ${new Date(
-          data.currentDate
-        ).toLocaleDateString()}</h2>
-        <table style="width:100%; margin-bottom:12px;">
-          <tr>
-            <td style="text-align:center; width:50%;">Date of Reading: ${new Date(data.currentDate).toLocaleDateString()}</td>
-            <td style="text-align:center; width:50%; color:#dc2626;">Due Date: ${new Date(data.dueDate).toLocaleDateString()}</td>
-          </tr>
-        </table>
-        <table style="${tableStyle}">
-          <tr>
-            <th style="${cellStyle}">Location</th>
-            <th style="${cellStyle}">Current RDG. kw hour</th>
-            <th style="${cellStyle}">Previous RDG. kw hour</th>
-            <th style="${cellStyle}">Consumption kw hour</th>
-            <th style="${cellStyle}">Percentage</th>
-          </tr>
-          <tr>
-            <td style="${cellStyle}">First Floor</td>
-            <td style="${cellStyle}">${data.currentFirstFloor.toFixed(2)}</td>
-            <td style="${cellStyle}">${data.previousFirstFloor.toFixed(2)}</td>
-            <td style="${cellStyle}">${data.firstFloorUsage.toFixed(2)}</td>
-            <td style="${cellStyle}">${data.firstFloorPercentage.toFixed(2)}%</td>
-          </tr>
-          <tr>
-            <td style="${cellStyle}">Second Floor</td>
-            <td style="${cellStyle}">${data.currentSecondFloor.toFixed(2)}</td>
-            <td style="${cellStyle}">${data.previousSecondFloor.toFixed(2)}</td>
-            <td style="${cellStyle}">${data.secondFloorUsage.toFixed(2)}</td>
-            <td style="${cellStyle}">${data.secondFloorPercentage.toFixed(2)}%</td>
-          </tr>
-          <tr>
-            <td style="${cellStyle}"><b>TOTAL</b></td>
-            <td style="${cellStyle}"></td>
-            <td style="${cellStyle}"></td>
-            <td style="${cellStyle}"><b>${data.totalUsage.toFixed(2)}</b></td>
-            <td style="${cellStyle}"><b>100%</b></td>
-          </tr>
-        </table>
-        <table style="${tableStyle.replace('16px', '12px')}">
-          <tr>
-            <th style="${cellStyle}">Location</th>
-            <th style="${cellStyle}">Total Amount</th>
-            <th style="${cellStyle}">Percentage</th>
-            <th style="${cellStyle}">Amount per Location</th>
-          </tr>
-          <tr>
-            <td style="${cellStyle}">First Floor</td>
-            <td style="${cellStyle}">${data.amount.toFixed(2)}</td>
-            <td style="${cellStyle}">${data.firstFloorPercentage.toFixed(2)}%</td>
-            <td style="${cellStyle}">${data.firstFloorAmount.toFixed(2)}</td>
-          </tr>
-          <tr>
-            <td style="${cellStyle}">Second Floor</td>
-            <td style="${cellStyle}">${data.amount.toFixed(2)}</td>
-            <td style="${cellStyle}">${data.secondFloorPercentage.toFixed(2)}%</td>
-            <td style="${cellStyle}">${data.secondFloorAmount.toFixed(2)}</td>
-          </tr>
-          <tr>
-            <td style="${cellStyle}"><b>TOTAL</b></td>
-            <td style="${cellStyle}"></td>
-            <td style="${cellStyle}"></td>
-            <td style="${cellStyle}"><b>${data.amount.toFixed(2)}</b></td>
-          </tr>
-        </table>
-        <div style="display:flex; align-items:flex-end; margin:4px 0;">
-          <span>First Floor Amount Due</span>
-          <span style="flex:1; border-bottom:1px dotted #000000; margin:0 6px 4px 6px;"></span>
-          <span>PHP ${data.firstFloorAmount.toFixed(2)}</span>
-        </div>
-        <div style="display:flex; align-items:flex-end; margin:4px 0;">
-          <span>Second Floor Amount Due</span>
-          <span style="flex:1; border-bottom:1px dotted #000000; margin:0 6px 4px 6px;"></span>
-          <span>PHP ${data.secondFloorAmount.toFixed(2)}</span>
-        </div>
-        <div style="width:100%; margin:6px 0; border-top:1px solid #000000;"></div>
-        <div style="display:flex; align-items:flex-end; margin:4px 0; font-weight:700;">
-          <span>Total Amount Due</span>
-          <span style="flex:1; border-bottom:1px dotted #000000; margin:0 6px 4px 6px;"></span>
-          <span>PHP ${data.amount.toFixed(2)}</span>
-        </div>
-        <p style="margin:12px 0 4px 0;">Prepared by: ${data.preparedBy}</p>
-        <p style="margin:4px 0 12px 0;">Date Prepared: ${new Date().toLocaleDateString()}</p>
-        
-        <!-- Images Section -->
-        <div style="border-top:2px solid #000000; padding-top:12px; margin-top:12px;">
-          <h3 style="text-align:center; margin:0 0 12px 0; font-size:14px;">Supporting Documents</h3>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
-            <div style="text-align:center;">
-              <div style="font-weight:bold; font-size:12px; margin-bottom:8px;">Reading Image</div>
-              ${readingImageHtml}
-            </div>
-            <div style="text-align:center;">
-              <div style="font-weight:bold; font-size:12px; margin-bottom:8px;">Reading Image</div>
+  // Compact table styles for single page
+  const compactTableStyle = 'width:100%; border-collapse:collapse; margin-bottom:8px; border:1px solid #000000;'
+  const compactCellStyle = 'border:1px solid #000000; padding:3px 4px; font-size:10px;'
+
+  const html = `
+    <div style="border:1px solid #000000; padding:12px;">
+      <h2 style="text-align:center; margin:0 0 4px 0; font-size:13px; font-weight:bold;">${data.unitName} (${data.type})</h2>
+      <p style="text-align:center; margin:0 0 8px 0; font-size:9px; color:#666;">
+        Reading: ${new Date(data.currentDate).toLocaleDateString()} | Due: ${new Date(data.dueDate).toLocaleDateString()}
+      </p>
+
+      <!-- Consumption Table -->
+      <table style="${compactTableStyle}">
+        <tr style="background:#f0f0f0;">
+          <th style="${compactCellStyle}">Location</th>
+          <th style="${compactCellStyle}">Current</th>
+          <th style="${compactCellStyle}">Previous</th>
+          <th style="${compactCellStyle}">Usage</th>
+          <th style="${compactCellStyle}">%</th>
+        </tr>
+        <tr>
+          <td style="${compactCellStyle}">First Floor</td>
+          <td style="${compactCellStyle} text-align:right;">${data.currentFirstFloor.toFixed(2)}</td>
+          <td style="${compactCellStyle} text-align:right;">${data.previousFirstFloor.toFixed(2)}</td>
+          <td style="${compactCellStyle} text-align:right;">${data.firstFloorUsage.toFixed(2)}</td>
+          <td style="${compactCellStyle} text-align:right;">${data.firstFloorPercentage.toFixed(1)}%</td>
+        </tr>
+        <tr>
+          <td style="${compactCellStyle}">Second Floor</td>
+          <td style="${compactCellStyle} text-align:right;">${data.currentSecondFloor.toFixed(2)}</td>
+          <td style="${compactCellStyle} text-align:right;">${data.previousSecondFloor.toFixed(2)}</td>
+          <td style="${compactCellStyle} text-align:right;">${data.secondFloorUsage.toFixed(2)}</td>
+          <td style="${compactCellStyle} text-align:right;">${data.secondFloorPercentage.toFixed(1)}%</td>
+        </tr>
+        <tr style="background:#f0f0f0; font-weight:bold;">
+          <td style="${compactCellStyle}">TOTAL</td>
+          <td style="${compactCellStyle}"></td>
+          <td style="${compactCellStyle}"></td>
+          <td style="${compactCellStyle} text-align:right;">${data.totalUsage.toFixed(2)}</td>
+          <td style="${compactCellStyle} text-align:right;">100%</td>
+        </tr>
+      </table>
+
+      <!-- Billing Table -->
+      <table style="${compactTableStyle}">
+        <tr style="background:#f0f0f0;">
+          <th style="${compactCellStyle}">Location</th>
+          <th style="${compactCellStyle}">Total Amount</th>
+          <th style="${compactCellStyle}">%</th>
+          <th style="${compactCellStyle}">Per Location</th>
+        </tr>
+        <tr>
+          <td style="${compactCellStyle}">First Floor</td>
+          <td style="${compactCellStyle} text-align:right;">PHP ${data.amount.toFixed(2)}</td>
+          <td style="${compactCellStyle} text-align:right;">${data.firstFloorPercentage.toFixed(1)}%</td>
+          <td style="${compactCellStyle} text-align:right;">PHP ${data.firstFloorAmount.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="${compactCellStyle}">Second Floor</td>
+          <td style="${compactCellStyle} text-align:right;">PHP ${data.amount.toFixed(2)}</td>
+          <td style="${compactCellStyle} text-align:right;">${data.secondFloorPercentage.toFixed(1)}%</td>
+          <td style="${compactCellStyle} text-align:right;">PHP ${data.secondFloorAmount.toFixed(2)}</td>
+        </tr>
+        <tr style="background:#f0f0f0; font-weight:bold;">
+          <td style="${compactCellStyle}">TOTAL AMOUNT DUE</td>
+          <td style="${compactCellStyle}"></td>
+          <td style="${compactCellStyle}"></td>
+          <td style="${compactCellStyle} text-align:right;">PHP ${data.amount.toFixed(2)}</td>
+        </tr>
+      </table>
+
+      <p style="margin:6px 0 2px 0; font-size:9px;">Prepared by: ${data.preparedBy}</p>
+      <p style="margin:0; font-size:9px;">Date Prepared: ${new Date().toLocaleDateString()}</p>
+
+      <!-- Images Section: Reading | Billing -->
+      <div style="margin-top:8px; border-top:1px solid #000000; padding-top:6px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div style="text-align:center;">
+            <div style="font-weight:bold; font-size:10px; margin-bottom:4px;">Reading Image</div>
+            <div style="height:200px;">
               ${readingImageHtml}
             </div>
           </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-            <div style="text-align:center;">
-              <div style="font-weight:bold; font-size:12px; margin-bottom:8px;">Billing Image</div>
-              ${billingImageHtml}
-            </div>
-            <div style="text-align:center;">
-              <div style="font-weight:bold; font-size:12px; margin-bottom:8px;">Billing Image</div>
+          <div style="text-align:center;">
+            <div style="font-weight:bold; font-size:10px; margin-bottom:4px;">Billing Image</div>
+            <div style="height:200px;">
               ${billingImageHtml}
             </div>
           </div>
         </div>
-      </div>`
-    )
-    .join('')
+      </div>
+    </div>
+  `
 
-  wrapper.innerHTML = copyHtml
+  wrapper.innerHTML = html
   return wrapper
 }
 
 export async function exportBillingToPng(data: BillingDataForExport, filename: string) {
   try {
-    const node = buildBillingPreviewElement(data, 1)
+    const node = buildBillingPreviewElement(data)
     document.body.appendChild(node)
     
     // Don't wait for images since they'll fail CORS anyway
@@ -193,7 +172,7 @@ export async function exportBillingToPdf(data: BillingDataForExport, filename: s
     const pageWidth = pdf.internal.pageSize.getWidth()
     const pageHeight = pdf.internal.pageSize.getHeight()
     const margin = 24
-    const node = buildBillingPreviewElement(data, 3)
+    const node = buildBillingPreviewElement(data)
     document.body.appendChild(node)
     
     // Don't wait for images since they'll fail CORS anyway

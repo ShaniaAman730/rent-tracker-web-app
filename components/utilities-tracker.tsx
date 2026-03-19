@@ -441,52 +441,50 @@ export function UtilitiesTracker() {
       {/* Image Viewing Modal */}
       {viewingImage && (
         <Dialog open onOpenChange={() => setViewingImage(null)}>
-          <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl">
+          <DialogContent className="bg-slate-800 border-slate-700 max-w-3xl">
             <DialogHeader>
               <DialogTitle className="text-white">{viewingImage.type}</DialogTitle>
             </DialogHeader>
             <div className="flex flex-col items-center gap-4">
-              <div className="relative">
-                <img
-                  src={convertGoogleDriveUrlToEmbeddable(viewingImage.url)}
-                  alt={viewingImage.type}
-                  className="max-w-full max-h-[600px] rounded border border-slate-600"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement
-                    target.style.display = 'none'
-                    // Show fallback message
-                    const parent = target.parentElement
-                    if (parent && !parent.querySelector('.cors-fallback')) {
-                      const fallback = document.createElement('div')
-                      fallback.className = 'cors-fallback'
-                      fallback.style.cssText = 'width:600px; height:400px; display:flex; align-items:center; justify-content:center; flex-direction:column; background:#334155; border:2px dashed #666; border-radius:8px; padding:20px; text-align:center;'
-                      fallback.innerHTML = `
-                        <div style="color:#e2e8f0; margin-bottom:16px;">
-                          <div style="font-size:48px; margin-bottom:8px;">🔒</div>
-                          <div style="font-weight:bold; font-size:16px; margin-bottom:8px;">Unable to Display Image</div>
-                          <div style="font-size:14px; color:#cbd5e1;">
-                            Google Drive images cannot be displayed due to security restrictions.<br/>
-                            Click the button below to view in Google Drive.
-                          </div>
-                        </div>
-                      `
-                      parent.insertBefore(fallback, target)
-                    }
-                  }}
+              {viewingImage.url.includes('<iframe') || viewingImage.url.includes('preview') ? (
+                // Display embed code as iframe
+                <div
+                  className="w-full"
+                  dangerouslySetInnerHTML={{ __html: viewingImage.url }}
+                  style={{ minHeight: '600px' }}
                 />
-              </div>
-              <Button
-                asChild
-                variant="outline"
-                className="border-slate-600 text-slate-300 hover:bg-slate-700"
-              >
-                <a href={viewingImage.url} target="_blank" rel="noopener noreferrer">
-                  Open in Google Drive
-                </a>
-              </Button>
-              <p className="text-xs text-slate-400 text-center">
-                💡 Tip: Save images locally from Google Drive to view them here, or use the PDF export which includes image placeholders.
-              </p>
+              ) : (
+                // Display URL as image
+                <div className="relative">
+                  <img
+                    src={convertGoogleDriveUrlToEmbeddable(viewingImage.url)}
+                    alt={viewingImage.type}
+                    className="max-w-full max-h-[600px] rounded border border-slate-600"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement
+                      target.style.display = 'none'
+                      // Show fallback message
+                      const parent = target.parentElement
+                      if (parent && !parent.querySelector('.cors-fallback')) {
+                        const fallback = document.createElement('div')
+                        fallback.className = 'cors-fallback'
+                        fallback.style.cssText = 'width:600px; height:400px; display:flex; align-items:center; justify-content:center; flex-direction:column; background:#334155; border:2px dashed #666; border-radius:8px; padding:20px; text-align:center;'
+                        fallback.innerHTML = `
+                          <div style="color:#e2e8f0; margin-bottom:16px;">
+                            <div style="font-size:48px; margin-bottom:8px;">🔒</div>
+                            <div style="font-weight:bold; font-size:16px; margin-bottom:8px;">Unable to Display Image</div>
+                            <div style="font-size:14px; color:#cbd5e1;">
+                              Google Drive images cannot be displayed due to security restrictions.<br/>
+                              Click the button below to view in Google Drive.
+                            </div>
+                          </div>
+                        `
+                        parent.insertBefore(fallback, target)
+                      }
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>

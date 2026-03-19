@@ -258,42 +258,42 @@ export function AddUtilityDialog({
           </div>
 
           <div className="border-t border-slate-600 pt-4">
-            <h3 className="text-sm font-semibold text-slate-300 mb-3">Supporting Images (Google Drive Links)</h3>
+            <h3 className="text-sm font-semibold text-slate-300 mb-3">Supporting Images (Google Drive)</h3>
             <p className="text-xs text-slate-400 mb-3">
-              Paste shareable Google Drive links. Both formats work:
-              <br />• Share link: <code className="text-slate-300">https://drive.google.com/file/d/FILE_ID/view</code>
-              <br />• Direct link: <code className="text-slate-300">https://drive.google.com/uc?id=FILE_ID</code>
+              Paste either a shareable link OR the embed code from Google Drive:
+              <br />• URL: <code className="text-slate-300 text-[10px]">https://drive.google.com/file/d/FILE_ID/view</code>
+              <br />• Embed: <code className="text-slate-300 text-[10px]">&lt;iframe src="...preview"&gt;&lt;/iframe&gt;</code>
             </p>
           </div>
 
           <div>
             <Label htmlFor="reading_image_url" className="text-slate-200">
-              Reading Image URL
+              Reading Image
             </Label>
             <Input
               id="reading_image_url"
               type="text"
-              placeholder="https://drive.google.com/uc?id=..."
+              placeholder="URL or embed code"
               value={readingImageUrl}
               onChange={(e) => setReadingImageUrl(e.target.value)}
               className="mt-1 bg-slate-700 border-slate-600 text-white text-sm"
             />
-            <p className="text-xs text-slate-400 mt-1">Link to Google Drive image of meter reading</p>
+            <p className="text-xs text-slate-400 mt-1">URL or embed code for meter reading image</p>
           </div>
 
           <div>
             <Label htmlFor="billing_image_url" className="text-slate-200">
-              Billing Image URL
+              Billing Image
             </Label>
             <Input
               id="billing_image_url"
               type="text"
-              placeholder="https://drive.google.com/uc?id=..."
+              placeholder="URL or embed code"
               value={billingImageUrl}
               onChange={(e) => setBillingImageUrl(e.target.value)}
               className="mt-1 bg-slate-700 border-slate-600 text-white text-sm"
             />
-            <p className="text-xs text-slate-400 mt-1">Link to Google Drive image of billing document</p>
+            <p className="text-xs text-slate-400 mt-1">URL or embed code for billing document image</p>
           </div>
 
           {error && (
