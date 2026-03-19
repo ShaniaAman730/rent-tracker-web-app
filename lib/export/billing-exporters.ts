@@ -38,27 +38,32 @@ function extractGoogleDriveFileId(input: string): string | null {
 
 function getImageHtml(imageUrl: string | null, altText: string): string {
   if (!imageUrl) {
-    return `<div style="display:flex; align-items:center; justify-content:center; width:100%; height:280px; background:#f0f0f0; border:1px solid #ccc; font-size:12px; color:#666; font-weight:bold;">${altText} not provided</div>`
+    return `<div style="display:flex; align-items:center; justify-content:center; width:100%; height:140px; background:#f0f0f0; border:1px solid #ccc; font-size:11px; color:#666; font-weight:bold;">${altText} not provided</div>`
   }
   
-  // Try to extract file ID from embed code or URL
+  // If it's an embed code (iframe), return it as-is so browser can render it
+  if (imageUrl.includes('<iframe')) {
+    return imageUrl
+  }
+  
+  // Try to extract file ID from URL or embed code
   const fileId = extractGoogleDriveFileId(imageUrl)
   
   if (fileId) {
-    // Try to use Google Drive's thumbnail/export endpoints
+    // Try to use Google Drive's export endpoint for direct image viewing
     const imageUrlAttempt = `https://drive.google.com/uc?id=${fileId}&export=view`
-    return `<img src="${imageUrlAttempt}" style="max-width:100%; max-height:280px; object-fit:contain;" alt="${altText}" onerror="this.style.display='none'" />`
+    return `<img src="${imageUrlAttempt}" style="max-width:100%; max-height:140px; object-fit:contain;" alt="${altText}" onerror="this.style.display='none'" />`
   }
   
-  // If we have a regular URL, try to load it directly
-  if (imageUrl && !imageUrl.includes('<iframe')) {
-    return `<img src="${convertGoogleDriveUrlToEmbeddable(imageUrl)}" style="max-width:100%; max-height:280px; object-fit:contain;" alt="${altText}" onerror="this.style.display='none'" />`
+  // If it's a regular URL, try to load it
+  if (imageUrl) {
+    return `<img src="${convertGoogleDriveUrlToEmbeddable(imageUrl)}" style="max-width:100%; max-height:140px; object-fit:contain;" alt="${altText}" onerror="this.style.display='none'" />`
   }
   
   // Fallback placeholder
-  return `<div style="display:flex; align-items:center; justify-content:center; flex-direction:column; width:100%; height:280px; background:#f5f5f5; border:2px dashed #999; font-size:11px; color:#666; padding:16px; text-align:center;">
-    <div style="font-weight:bold; margin-bottom:8px;">📎 Image Available</div>
-    <div style="font-size:10px; line-height:1.4;">${altText}<br/>Available in web interface</div>
+  return `<div style="display:flex; align-items:center; justify-content:center; flex-direction:column; width:100%; height:140px; background:#f5f5f5; border:2px dashed #999; font-size:10px; color:#666; padding:8px; text-align:center;">
+    <div style="font-weight:bold; margin-bottom:4px;">📎 Image</div>
+    <div style="font-size:9px; line-height:1.3;">Available in web</div>
   </div>`
 }
 
