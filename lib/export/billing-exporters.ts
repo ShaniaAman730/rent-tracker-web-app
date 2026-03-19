@@ -67,25 +67,25 @@ export function buildBillingPreviewElement(data: BillingDataForExport) {
   wrapper.style.width = '1000px'
   wrapper.style.background = '#ffffff'
   wrapper.style.color = '#000000'
-  wrapper.style.padding = '20px'
+  wrapper.style.padding = '16px'
   wrapper.style.fontFamily = 'Arial, sans-serif'
-  wrapper.style.fontSize = '11px'
+  wrapper.style.fontSize = '10px'
 
   const readingImageHtml = getImageHtml(data.readingImageUrl, 'Reading')
   const billingImageHtml = getImageHtml(data.billingImageUrl, 'Billing')
 
   // Compact table styles for single page
-  const compactTableStyle = 'width:100%; border-collapse:collapse; margin-bottom:8px; border:1px solid #000000;'
-  const compactCellStyle = 'border:1px solid #000000; padding:3px 4px; font-size:10px;'
+  const compactTableStyle = 'width:100%; border-collapse:collapse; margin-bottom:4px; border:1px solid #000000;'
+  const compactCellStyle = 'border:1px solid #000000; padding:2px 3px; font-size:9px;'
 
   const html = `
-    <div style="border:1px solid #000000; padding:12px;">
-      <h2 style="text-align:center; margin:0 0 4px 0; font-size:13px; font-weight:bold;">${data.unitName} (${data.type})</h2>
-      <p style="text-align:center; margin:0 0 8px 0; font-size:9px; color:#666;">
+    <div style="border:1px solid #000000; padding:8px;">
+      <h2 style="text-align:center; margin:0 0 2px 0; font-size:12px; font-weight:bold;">${data.unitName} (${data.type})</h2>
+      <p style="text-align:center; margin:0 0 4px 0; font-size:8px; color:#666;">
         Reading: ${new Date(data.currentDate).toLocaleDateString()} | Due: ${new Date(data.dueDate).toLocaleDateString()}
       </p>
 
-      <!-- Consumption Table -->
+      <!-- COMPUTATION SECTION -->
       <table style="${compactTableStyle}">
         <tr style="background:#f0f0f0;">
           <th style="${compactCellStyle}">Location</th>
@@ -117,7 +117,6 @@ export function buildBillingPreviewElement(data: BillingDataForExport) {
         </tr>
       </table>
 
-      <!-- Billing Table -->
       <table style="${compactTableStyle}">
         <tr style="background:#f0f0f0;">
           <th style="${compactCellStyle}">Location</th>
@@ -145,23 +144,22 @@ export function buildBillingPreviewElement(data: BillingDataForExport) {
         </tr>
       </table>
 
-      <p style="margin:6px 0 2px 0; font-size:9px;">Prepared by: ${data.preparedBy}</p>
-      <p style="margin:0; font-size:9px;">Date Prepared: ${new Date().toLocaleDateString()}</p>
+      <p style="margin:2px 0 1px 0; font-size:8px;">Prepared by: ${data.preparedBy} | Date: ${new Date().toLocaleDateString()}</p>
 
-      <!-- Images Section: Reading | Billing -->
-      <div style="margin-top:8px; border-top:1px solid #000000; padding-top:6px;">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-          <div style="text-align:center;">
-            <div style="font-weight:bold; font-size:10px; margin-bottom:4px;">Reading Image</div>
-            <div style="height:200px;">
-              ${readingImageHtml}
-            </div>
+      <!-- READING IMAGE -->
+      <div style="margin:4px 0 0 0; border-top:1px solid #000000; padding:4px 0 0 0;">
+        <div style="text-align:center; margin-bottom:3px;">
+          <div style="font-weight:bold; font-size:9px;">Reading</div>
+          <div style="height:140px; overflow:hidden;">
+            ${readingImageHtml}
           </div>
-          <div style="text-align:center;">
-            <div style="font-weight:bold; font-size:10px; margin-bottom:4px;">Billing Image</div>
-            <div style="height:200px;">
-              ${billingImageHtml}
-            </div>
+        </div>
+
+        <!-- BILLING IMAGE -->
+        <div style="text-align:center;">
+          <div style="font-weight:bold; font-size:9px;">Billing</div>
+          <div style="height:140px; overflow:hidden;">
+            ${billingImageHtml}
           </div>
         </div>
       </div>
@@ -194,37 +192,46 @@ export async function exportBillingToPng(data: BillingDataForExport, filename: s
 
 export async function exportBillingToPdf(data: BillingDataForExport, filename: string) {
   try {
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'pt',
-      format: 'a4',
-    })
-
-    const pageWidth = pdf.internal.pageSize.getWidth()
-    const pageHeight = pdf.internal.pageSize.getHeight()
-    const margin = 24
     const node = buildBillingPreviewElement(data)
-    document.body.appendChild(node)
+    const html = node.innerHTML
     
-    // Wait for images to attempt loading (some may fail due to CORS, which is ok)
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Open new window with printable HTML
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      throw new Error('Could not open print window. Please disable popup blockers.')
+    }
     
-    const dataUrl = await toPng(node, { cacheBust: true, pixelRatio: 2 })
-    document.body.removeChild(node)
-
-    const img = new Image()
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve()
-      img.onerror = () => reject(new Error('Failed to render billing document'))
-      img.src = dataUrl
-    })
-
-    const ratio = Math.min((pageWidth - margin * 2) / img.width, (pageHeight - margin * 2) / img.height)
-    const width = img.width * ratio
-    const height = img.height * ratio
-    pdf.addImage(dataUrl, 'PNG', (pageWidth - width) / 2, margin, width, height)
-
-    pdf.save(filename)
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${filename}</title>
+          <style>
+            body {
+              margin: 0;
+              padding: 20px;
+              font-family: Arial, sans-serif;
+              background: white;
+            }
+            @media print {
+              body { padding: 0; }
+            }
+            img { max-width: 100%; height: auto; }
+            iframe { border: none; width: 100%; min-height: 300px; }
+          </style>
+        </head>
+        <body>
+          ${html}
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+    
+    // Wait for iframes/images to load before offering print
+    setTimeout(() => {
+      printWindow.print()
+    }, 2000)
+    
   } catch (error) {
     console.error('Error exporting to PDF:', error)
     throw new Error('Failed to generate PDF. Please try again.')
