@@ -357,7 +357,7 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
           }
           .embed-image-wrap {
             border: 1px solid #000;
-            height: 300px;
+            height: 500px;
             overflow: hidden;
             display: flex;
             align-items: center;
