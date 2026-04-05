@@ -414,7 +414,7 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
           }
           .embed-image-wrap {
             border: 1px solid #000;
-            height: 500px;
+            height: 600px;
             overflow: hidden;
             display: flex;
             align-items: center;
@@ -455,7 +455,7 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
           }
           .compact-summary-card h2 {
             margin: 0 0 3px 0;
-            font-size: 11px;
+            font-size: 12px;
             line-height: 1.2;
             text-align: center;
           }
@@ -464,12 +464,12 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
             justify-content: center;
             gap: 8px;
             margin-bottom: 4px;
-            font-size: 8px;
+            font-size: 12px;
             line-height: 1.2;
           }
           .compact-section-title {
             margin: 0 0 3px 0;
-            font-size: 9px;
+            font-size: 12px;
             font-weight: bold;
           }
           .compact-table {
@@ -478,7 +478,7 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
           .compact-table th,
           .compact-table td {
             padding: 2px 3px;
-            font-size: 8px;
+            font-size: 12px;
           }
           .amount-only-table {
             margin-bottom: 0;
