@@ -172,13 +172,74 @@ function getPdfImageSection(
   `
 }
 
+function getCompactAmountTable(
+  data: BillingDataForExport,
+  floorLabel: 'First Floor' | 'Second Floor',
+  amount: number,
+): string {
+  return `
+    <section class="compact-summary-card">
+      <h2>${escapeHtml(data.unitName)} (${escapeHtml(data.type)})</h2>
+      <div class="compact-meta">
+        <span>Reading: ${escapeHtml(new Date(data.currentDate).toLocaleDateString())}</span>
+        <span class="due-date">Due: ${escapeHtml(new Date(data.dueDate).toLocaleDateString())}</span>
+      </div>
+
+      <p class="compact-section-title">Computation</p>
+      <table class="compact-table">
+        <thead>
+          <tr>
+            <th>Location</th>
+            <th class="text-right">Current</th>
+            <th class="text-right">Previous</th>
+            <th class="text-right">Usage</th>
+            <th class="text-right">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>First Floor</td>
+            <td class="text-right">${data.currentFirstFloor.toFixed(2)}</td>
+            <td class="text-right">${data.previousFirstFloor.toFixed(2)}</td>
+            <td class="text-right">${data.firstFloorUsage.toFixed(2)}</td>
+            <td class="text-right">${data.firstFloorPercentage.toFixed(2)}%</td>
+          </tr>
+          <tr>
+            <td>Second Floor</td>
+            <td class="text-right">${data.currentSecondFloor.toFixed(2)}</td>
+            <td class="text-right">${data.previousSecondFloor.toFixed(2)}</td>
+            <td class="text-right">${data.secondFloorUsage.toFixed(2)}</td>
+            <td class="text-right">${data.secondFloorPercentage.toFixed(2)}%</td>
+          </tr>
+          <tr>
+            <td><strong>TOTAL</strong></td>
+            <td></td>
+            <td></td>
+            <td class="text-right"><strong>${data.totalUsage.toFixed(2)}</strong></td>
+            <td class="text-right"><strong>100%</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table class="compact-table amount-only-table">
+        <tbody>
+          <tr>
+            <td><strong>${escapeHtml(floorLabel)} Amount</strong></td>
+            <td class="text-right"><strong>PHP ${amount.toFixed(2)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  `
+}
+
 async function buildBillingPdfHtml(data: BillingDataForExport, filename: string): Promise<string> {
   const [readingPrintableSrc, billingPrintableSrc] = await Promise.all([
     resolvePrintableImageSource(data.readingImageUrl),
     resolvePrintableImageSource(data.billingImageUrl),
   ])
-  const copiesHtml = Array.from({ length: 2 }, (_, index) => `
-    <section class="copy-block ${index === 0 ? 'copy-first' : ''}">
+  const contentHtml = `
+    <section class="copy-block">
       <h1>${escapeHtml(data.unitName)} (${escapeHtml(data.type)})</h1>
       <div class="meta-row">
         <span>Reading Date: ${escapeHtml(new Date(data.currentDate).toLocaleDateString())}</span>
@@ -259,11 +320,16 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
         ${getPdfImageSection('Billing Image', billingPrintableSrc)}
       </section>
 
+      <section class="compact-summary-grid">
+        ${getCompactAmountTable(data, 'First Floor', data.firstFloorAmount)}
+        ${getCompactAmountTable(data, 'Second Floor', data.secondFloorAmount)}
+      </section>
+
       <p class="prepared-line">
         Prepared by: ${escapeHtml(data.preparedBy)} | Date Prepared: ${escapeHtml(new Date().toLocaleDateString())}
       </p>
     </section>
-  `).join('')
+  `
 
   return `
     <!DOCTYPE html>
@@ -292,11 +358,6 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
           }
           .copy-block {
             page-break-inside: avoid;
-          }
-          .copy-first {
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #000;
           }
           h1 {
             margin: 0 0 3px 0;
@@ -357,7 +418,7 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
           }
           .embed-image-wrap {
             border: 1px solid #000;
-            height: 500px;
+            height: 285px;
             overflow: hidden;
             display: flex;
             align-items: center;
@@ -385,6 +446,47 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
             font-size: 9px;
             text-align: left;
           }
+          .compact-summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+            page-break-inside: avoid;
+          }
+          .compact-summary-card {
+            border: 1px solid #000;
+            padding: 6px;
+          }
+          .compact-summary-card h2 {
+            margin: 0 0 3px 0;
+            font-size: 9px;
+            line-height: 1.2;
+            text-align: center;
+          }
+          .compact-meta {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 4px;
+            font-size: 7px;
+            line-height: 1.2;
+          }
+          .compact-section-title {
+            margin: 0 0 3px 0;
+            font-size: 8px;
+            font-weight: bold;
+          }
+          .compact-table {
+            margin-bottom: 4px;
+          }
+          .compact-table th,
+          .compact-table td {
+            padding: 2px 3px;
+            font-size: 7px;
+          }
+          .amount-only-table {
+            margin-bottom: 0;
+          }
           @media print {
             .page {
               width: 100%;
@@ -394,7 +496,7 @@ async function buildBillingPdfHtml(data: BillingDataForExport, filename: string)
       </head>
       <body>
         <div class="page">
-          ${copiesHtml}
+          ${contentHtml}
         </div>
       </body>
     </html>
