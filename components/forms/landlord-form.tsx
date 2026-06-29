@@ -30,6 +30,7 @@ export function LandlordForm({ open, onOpenChange, landlord, onSuccess }: Landlo
   const [middleName, setMiddleName] = useState(landlord?.middle_name || '')
   const [lastName, setLastName] = useState(landlord?.last_name || '')
   const [namePrefix, setNamePrefix] = useState(landlord?.name_prefix || '')
+  const [email, setEmail] = useState(landlord?.email || '')
   const [citizenship, setCitizenship] = useState(landlord?.citizenship || 'Filipino')
   const [maritalStatus, setMaritalStatus] = useState(landlord?.marital_status || '')
   const [postalAddress, setPostalAddress] = useState(landlord?.postal_address || '')
@@ -45,6 +46,7 @@ export function LandlordForm({ open, onOpenChange, landlord, onSuccess }: Landlo
     setMiddleName(landlord?.middle_name || '')
     setLastName(landlord?.last_name || '')
     setNamePrefix(landlord?.name_prefix || '')
+    setEmail(landlord?.email || '')
     setCitizenship(landlord?.citizenship || 'Filipino')
     setMaritalStatus(landlord?.marital_status || '')
     setPostalAddress(landlord?.postal_address || '')
@@ -64,6 +66,7 @@ export function LandlordForm({ open, onOpenChange, landlord, onSuccess }: Landlo
       middle_name: middleName.trim(),
       last_name: lastName.trim(),
       name_prefix: namePrefix.trim() || null,
+      email: email.trim() || null,
       citizenship: citizenship.trim(),
       marital_status: maritalStatus.trim(),
       postal_address: postalAddress.trim(),
@@ -155,6 +158,17 @@ export function LandlordForm({ open, onOpenChange, landlord, onSuccess }: Landlo
                 className="mt-1 bg-slate-700 border-slate-600 text-white"
               />
             </div>
+          </div>
+
+          <div>
+            <Label className="text-slate-200">Email</Label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="mt-1 bg-slate-700 border-slate-600 text-white"
+              placeholder="landlord@example.com"
+            />
           </div>
 
           <div>

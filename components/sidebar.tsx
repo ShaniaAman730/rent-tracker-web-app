@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Bot,
 } from 'lucide-react'
 import { User } from '@supabase/supabase-js'
 
@@ -50,6 +51,7 @@ export function Sidebar({
     { label: 'Rent Tracker', icon: LayoutDashboard, path: '/dashboard' },
     { label: 'Utilities Tracker', icon: Zap, path: '/dashboard/utilities' },
     { label: 'Compute Utilities', icon: Calculator, path: '/dashboard/compute-utilities' },
+    { label: 'Agent', icon: Bot, path: '/dashboard/agent' },
     { label: 'Properties', icon: Building2, path: '/dashboard/properties' },
     { label: 'Tenants', icon: Users, path: '/dashboard/tenants' },
     { label: 'Contracts', icon: FileText, path: '/dashboard/contract-monitoring' },

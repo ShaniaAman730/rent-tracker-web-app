@@ -55,6 +55,7 @@ export type Landlord = {
   middle_name: string
   last_name: string
   name_prefix: string | null
+  email: string | null
   citizenship: string
   marital_status: string
   postal_address: string

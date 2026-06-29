@@ -60,6 +60,7 @@ export default function LandlordsPage() {
                 {landlord.name_prefix ? `${landlord.name_prefix} ` : ''}
                 {landlord.first_name} {landlord.middle_name} {landlord.last_name}
               </h2>
+              {landlord.email && <p className="mt-3 text-slate-300">Email: {landlord.email}</p>}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

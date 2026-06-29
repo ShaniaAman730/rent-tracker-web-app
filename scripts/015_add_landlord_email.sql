@@ -1,0 +1,2 @@
+ALTER TABLE public.landlord
+  ADD COLUMN IF NOT EXISTS email TEXT;

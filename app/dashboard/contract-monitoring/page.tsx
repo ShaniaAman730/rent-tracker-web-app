@@ -168,6 +168,35 @@ export default function ContractMonitoringPage() {
 
   const singleLandlord = useMemo(() => landlords[0] || null, [landlords])
 
+  const landlordReportMailto = useMemo(() => {
+    if (!singleLandlord?.email) return null
+
+    const contractCount = contracts.length
+    const signedContracts = contracts.filter((contract) => contract.signed).length
+    const landlordName = `${singleLandlord.name_prefix ? `${singleLandlord.name_prefix} ` : ''}${singleLandlord.first_name} ${singleLandlord.middle_name} ${singleLandlord.last_name}`.replace(/\s+/g, ' ').trim()
+
+    const lines = [
+      `Hello ${landlordName},`,
+      '',
+      `Here is the contract monitoring report for ${currentYear}:`,
+      `- Total contracts: ${contractCount}`,
+      `- Signed contracts: ${signedContracts}`,
+      '',
+      'Contract list:',
+      ...contracts.map((contract) => {
+        const tenantName = `${contract.first_name} ${contract.middle_name} ${contract.last_name}`.replace(/\s+/g, ' ').trim()
+        return `- Unit ${contract.unit_id}: ${tenantName} | Rent PHP ${Number(contract.rent).toLocaleString()} | ${contract.begin_contract} to ${contract.end_contract} | ${contract.signed ? 'Signed' : 'Unsigned'}`
+      }),
+      '',
+      'Best regards,',
+      'Rent Tracker Bot',
+    ]
+
+    const subject = encodeURIComponent(`Contract report for ${currentYear}`)
+    const body = encodeURIComponent(lines.join('\n'))
+    return `mailto:${encodeURIComponent(singleLandlord.email)}?subject=${subject}&body=${body}`
+  }, [contracts, currentYear, singleLandlord])
+
   const getOwnerName = (userId?: string | null) =>
     (userId ? recordedByNames.get(userId) : null) || userId || 'Someone'
 
@@ -511,6 +540,11 @@ export default function ContractMonitoringPage() {
             </Button>
           </div>
         </div>
+        {landlordReportMailto && (
+          <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
+            <a href={landlordReportMailto}>Send Report</a>
+          </Button>
+        )}
       </div>
 
       {properties.length === 0 ? (
